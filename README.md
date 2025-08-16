@@ -1,2 +1,2 @@
 # Style-Converter
-🔄 Convert UI styles across platforms — from Tailwind to Jetpack Compose &amp; more
+🔄 Convert UI styles across platforms — from CSS to Jetpack Compose &amp; more
