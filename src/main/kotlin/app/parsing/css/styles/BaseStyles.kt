@@ -59,6 +59,40 @@ import app.parsing.css.styles.font.fontFamily
 import app.parsing.css.styles.font.lineHeight
 import app.parsing.css.styles.textalign.textAlign
 import app.parsing.css.styles.letterspacing.letterSpacing
+import app.parsing.css.styles.overflow.overflowX
+import app.parsing.css.styles.overflow.overflowY
+import app.parsing.css.styles.overflow.overflowShorthand
+import app.parsing.css.styles.scrollsnap.scrollSnapAlign
+import app.parsing.css.styles.scrollsnap.scrollSnapStop
+import app.parsing.css.styles.scrollsnap.scrollSnapType
+import app.parsing.css.styles.flex.flexGrow
+import app.parsing.css.styles.flex.flexShrink
+import app.parsing.css.styles.flex.flexBasis
+import app.parsing.css.styles.flex.flexShorthand
+import app.parsing.css.styles.grid.gridTemplateRows
+import app.parsing.css.styles.grid.gridTemplateColumns
+import app.parsing.css.styles.grid.gridTemplateAreas
+import app.parsing.css.styles.grid.gridAutoRows
+import app.parsing.css.styles.grid.gridAutoColumns
+import app.parsing.css.styles.grid.gridAutoFlow
+import app.parsing.css.styles.grid.gridShorthand
+import app.parsing.css.styles.gridarea.gridAreaShorthand
+import app.parsing.css.styles.gridarea.gridRowStartInArea
+import app.parsing.css.styles.gridarea.gridRowEndInArea
+import app.parsing.css.styles.gridrow.gridRowShorthand
+import app.parsing.css.styles.gridrow.gridRowStart
+import app.parsing.css.styles.gridrow.gridRowEnd
+import app.parsing.css.styles.gridcolumn.gridColumnShorthand
+import app.parsing.css.styles.gridcolumn.gridColumnStart
+import app.parsing.css.styles.gridcolumn.gridColumnEnd
+import app.parsing.css.styles.gap.rowGap
+import app.parsing.css.styles.gap.columnGap
+import app.parsing.css.styles.gap.gapShorthand
+import app.parsing.css.styles.position.positionProp
+import app.parsing.css.styles.inset.topProp
+import app.parsing.css.styles.inset.rightProp
+import app.parsing.css.styles.inset.bottomProp
+import app.parsing.css.styles.inset.leftProp
 
 typealias CssHandler = (prop: String, value: JsonElement, acc: BaseIR) -> BaseIR
 
@@ -150,6 +184,45 @@ private val HANDLERS: Map<String, CssHandler> = mapOf(
     ,"line-height" to { p, v, acc -> lineHeight.applyLineHeight(p, v, acc) }
     ,"text-align" to { p, v, acc -> textAlign.applyTextAlign(p, v, acc) }
     ,"letter-spacing" to { p, v, acc -> letterSpacing.applyLetterSpacing(p, v, acc) }
+    // Overflow
+    ,"overflow-x" to { p, v, acc -> overflowX.applyOverflowX(p, v, acc) }
+    ,"overflow-y" to { p, v, acc -> overflowY.applyOverflowY(p, v, acc) }
+    ,"overflow" to { p, v, acc -> overflowShorthand.applyOverflow(p, v, acc) }
+    // Scroll snap
+    ,"scroll-snap-align" to { p, v, acc -> scrollSnapAlign.applyScrollSnapAlign(p, v, acc) }
+    ,"scroll-snap-stop" to { p, v, acc -> scrollSnapStop.applyScrollSnapStop(p, v, acc) }
+    ,"scroll-snap-type" to { p, v, acc -> scrollSnapType.applyScrollSnapType(p, v, acc) }
+    // Flex
+    ,"flex-grow" to { p, v, acc -> flexGrow.applyFlexGrow(p, v, acc) }
+    ,"flex-shrink" to { p, v, acc -> flexShrink.applyFlexShrink(p, v, acc) }
+    ,"flex-basis" to { p, v, acc -> flexBasis.applyFlexBasis(p, v, acc) }
+    ,"flex" to { p, v, acc -> flexShorthand.applyFlex(p, v, acc) }
+    // Grid
+    ,"grid-template-rows" to { p, v, acc -> gridTemplateRows.applyGridTemplateRows(p, v, acc) }
+    ,"grid-template-columns" to { p, v, acc -> gridTemplateColumns.applyGridTemplateColumns(p, v, acc) }
+    ,"grid-template-areas" to { p, v, acc -> gridTemplateAreas.applyGridTemplateAreas(p, v, acc) }
+    ,"grid-auto-rows" to { p, v, acc -> gridAutoRows.applyGridAutoRows(p, v, acc) }
+    ,"grid-auto-columns" to { p, v, acc -> gridAutoColumns.applyGridAutoColumns(p, v, acc) }
+    ,"grid-auto-flow" to { p, v, acc -> gridAutoFlow.applyGridAutoFlow(p, v, acc) }
+    ,"grid" to { p, v, acc -> gridShorthand.applyGrid(p, v, acc) }
+    // Grid placement
+    ,"grid-area" to { p, v, acc -> gridAreaShorthand.applyGridArea(p, v, acc) }
+    ,"grid-row" to { p, v, acc -> gridRowShorthand.applyGridRow(p, v, acc) }
+    ,"grid-row-start" to { p, v, acc -> gridRowStart.applyGridRowStart(p, v, acc) }
+    ,"grid-row-end" to { p, v, acc -> gridRowEnd.applyGridRowEnd(p, v, acc) }
+    ,"grid-column" to { p, v, acc -> gridColumnShorthand.applyGridColumn(p, v, acc) }
+    ,"grid-column-start" to { p, v, acc -> gridColumnStart.applyGridColumnStart(p, v, acc) }
+    ,"grid-column-end" to { p, v, acc -> gridColumnEnd.applyGridColumnEnd(p, v, acc) }
+    // Gap
+    ,"row-gap" to { p, v, acc -> rowGap.applyRowGap(p, v, acc) }
+    ,"column-gap" to { p, v, acc -> columnGap.applyColumnGap(p, v, acc) }
+    ,"gap" to { p, v, acc -> gapShorthand.applyGap(p, v, acc) }
+    // Positioning
+    ,"position" to { p, v, acc -> positionProp.applyPosition(p, v, acc) }
+    ,"top" to { p, v, acc -> topProp.applyTop(p, v, acc) }
+    ,"right" to { p, v, acc -> rightProp.applyRight(p, v, acc) }
+    ,"bottom" to { p, v, acc -> bottomProp.applyBottom(p, v, acc) }
+    ,"left" to { p, v, acc -> leftProp.applyLeft(p, v, acc) }
 )
 
 
