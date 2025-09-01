@@ -62,7 +62,14 @@ data class TypographyIR(
  */
 @Serializable
 data class SpacingIR(
-    val marginTopPx: Double? = null
+    val marginTopPx: Double? = null,
+    val marginRightPx: Double? = null,
+    val marginBottomPx: Double? = null,
+    val marginLeftPx: Double? = null,
+    val paddingTopPx: Double? = null,
+    val paddingRightPx: Double? = null,
+    val paddingBottomPx: Double? = null,
+    val paddingLeftPx: Double? = null
 )
 
 /**
@@ -94,6 +101,8 @@ data class BaseIR(
     var size: SizeIR? = null,
     var layout: LayoutIR? = null,
     var border: BorderIR? = null,
+    // Fallback bucket for properties not yet modeled in the IR
+    var other: Map<String, String>? = null,
 )
 
 /**

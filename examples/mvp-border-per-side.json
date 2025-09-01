@@ -11,14 +11,138 @@
         "border-top-left-radius": "8px",
         "border-top-right-radius": "4px",
         "border-bottom-right-radius": "2px",
-        "border-bottom-left-radius": "0px"
+        "border-bottom-left-radius": "0px",
+        "color": "#FFFFFF",
+        "padding": "10px 16px",
+        "font-weight": "600"
       },
       "selectors": [
-        { "when": ":hover", "styles": { "opacity": 0.9 } }
+        { "when": ":hover", "styles": { "opacity": 0.9 } },
+        { "when": ":active", "styles": { "opacity": 0.8, "transform": "scale(0.98)" } }
       ],
       "media": [
         { "query": "(min-width: 768px)", "styles": { "border-left": "4px solid #00FF00" } }
       ]
+    },
+
+    "SecondaryButton": {
+      "styles": {
+        "background-color": "#FFFFFF",
+        "border": "2px solid #6200EE",
+        "color": "#6200EE",
+        "padding": "10px 16px",
+        "border-radius": "6px",
+        "font-weight": "500"
+      },
+      "selectors": [
+        { "when": ":hover", "styles": { "background-color": "#F2E7FE" } }
+      ]
+    },
+
+    "DangerButton": {
+      "styles": {
+        "background-color": "#B00020",
+        "color": "#FFFFFF",
+        "padding": "10px 16px",
+        "border-radius": "6px",
+        "font-weight": "600"
+      },
+      "selectors": [
+        { "when": ":hover", "styles": { "background-color": "#D32F2F" } }
+      ]
+    },
+
+    "InputField": {
+      "styles": {
+        "border": "1px solid #CCCCCC",
+        "padding": "8px 12px",
+        "border-radius": "4px",
+        "font-size": "14px",
+        "color": "#333333"
+      },
+      "selectors": [
+        { "when": ":focus", "styles": { "border-color": "#6200EE", "outline": "none" } }
+      ]
+    },
+
+    "Card": {
+      "styles": {
+        "background-color": "#FFFFFF",
+        "border": "1px solid #E0E0E0",
+        "border-radius": "8px",
+        "padding": "16px",
+        "box-shadow": "0px 2px 4px rgba(0,0,0,0.1)"
+      },
+      "selectors": [
+        { "when": ":hover", "styles": { "box-shadow": "0px 4px 8px rgba(0,0,0,0.15)" } }
+      ]
+    },
+
+    "Modal": {
+      "styles": {
+        "background-color": "#FFFFFF",
+        "padding": "24px",
+        "border-radius": "12px",
+        "box-shadow": "0px 8px 20px rgba(0,0,0,0.2)",
+        "width": "90%",
+        "max-width": "600px"
+      }
+    },
+
+    "Navbar": {
+      "styles": {
+        "display": "flex",
+        "align-items": "center",
+        "justify-content": "space-between",
+        "background-color": "#6200EE",
+        "padding": "12px 24px",
+        "color": "#FFFFFF"
+      }
+    },
+
+    "Footer": {
+      "styles": {
+        "background-color": "#F5F5F5",
+        "padding": "20px",
+        "color": "#333333",
+        "text-align": "center"
+      }
+    },
+
+    "Badge": {
+      "styles": {
+        "display": "inline-block",
+        "padding": "4px 10px",
+        "border-radius": "12px",
+        "background-color": "#03DAC6",
+        "color": "#000000",
+        "font-size": "12px",
+        "font-weight": "500"
+      }
+    },
+
+    "Alert": {
+      "styles": {
+        "padding": "12px 16px",
+        "border-radius": "6px",
+        "font-weight": "500"
+      },
+      "variants": {
+        "success": { "background-color": "#C8E6C9", "color": "#256029" },
+        "error": { "background-color": "#FFCDD2", "color": "#B71C1C" },
+        "warning": { "background-color": "#FFF9C4", "color": "#7F6000" },
+        "info": { "background-color": "#BBDEFB", "color": "#0D47A1" }
+      }
+    },
+
+    "Tooltip": {
+      "styles": {
+        "background-color": "#333333",
+        "color": "#FFFFFF",
+        "padding": "6px 10px",
+        "border-radius": "4px",
+        "font-size": "12px"
+      }
     }
   }
 }
