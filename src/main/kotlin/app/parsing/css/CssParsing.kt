@@ -16,7 +16,7 @@ fun cssParsing(doc: JsonObject): DocumentIR {
 		val baseStyles = parseBaseStyles(obj["styles"]?.jsonObject ?: buildJsonObject { })
 		val selectors = parseSelectors(obj["selectors"]?.jsonArray, ::parseBaseStyles)
 		val media = parseMedia(obj["media"]?.jsonArray, ::parseBaseStyles)
-		ComponentIR(name = name, base = baseStyles, selectors = selectors, media = media)
+		ComponentIR(name = name, styles = baseStyles, selectors = selectors, media = media)
 	}
 	return DocumentIR(components)
 }

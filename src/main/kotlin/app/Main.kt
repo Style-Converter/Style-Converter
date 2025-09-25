@@ -81,10 +81,9 @@ fun main(rawArgs: Array<String>) {
         if (fromRaw !in allowedFrom) { printUsage(); return }
         val ir = parsing(root, fromRaw)
         val pretty = Json { prettyPrint = true }.encodeToString(ir)
-        println("[style-converter] IR as JSON:\n$pretty")
-
-        // Ensure output directory exists
+        // Ensure output directory exists and write IR to tmpOutput.json instead of printing
         File(outDir).mkdirs()
+        File(outDir, "tmpOutput.json").writeText(pretty)
         
         // Generate code for each target platform via logic layer
         val outputs = logic(ir, targets.toSet())

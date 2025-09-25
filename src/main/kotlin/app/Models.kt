@@ -14,95 +14,16 @@ data class ColorRgba(
 )
 
 /**
- * Represents properties for one side of a border (top, right, bottom, or left)
- * @param widthPx Border width in pixels
- * @param color Border color as RGBA
- * @param style Border style (e.g., "solid", "none")
+ * property captured from CSS-like inputs
  */
 @Serializable
-data class BorderSide(
-    var widthPx: Double? = null, 
-    var color: ColorRgba? = null, 
-    var style: String? = null
-)
-
-/**
- * Represents border radius values for all four corners in pixels
- */
-@Serializable
-data class BorderRadius(
-    var topLeftPx: Double? = null, 
-    var topRightPx: Double? = null, 
-    var bottomRightPx: Double? = null, 
-    var bottomLeftPx: Double? = null
-)
-
-/**
- * Intermediate representation of border properties including all sides and corner radius
- */
-@Serializable
-data class BorderIR(
-    val top: BorderSide? = null, 
-    val right: BorderSide? = null, 
-    val bottom: BorderSide? = null, 
-    val left: BorderSide? = null, 
-    val radius: BorderRadius? = null
-)
-
-/**
- * Intermediate representation of typography properties
- */
-@Serializable
-data class TypographyIR(
-    val fontSizePx: Double? = null
-)
-
-/**
- * Intermediate representation of spacing/margin properties
- */
-@Serializable
-data class SpacingIR(
-    val marginTopPx: Double? = null,
-    val marginRightPx: Double? = null,
-    val marginBottomPx: Double? = null,
-    val marginLeftPx: Double? = null,
-    val paddingTopPx: Double? = null,
-    val paddingRightPx: Double? = null,
-    val paddingBottomPx: Double? = null,
-    val paddingLeftPx: Double? = null
-)
-
-/**
- * Intermediate representation of size properties
- */
-@Serializable
-data class SizeIR(
-    val widthPx: Double? = null
-)
-
-/**
- * Intermediate representation of layout properties
- */
-@Serializable
-data class LayoutIR(
-    val display: String? = null
-)
-
-/**
- * Base intermediate representation containing all common style properties
- * This serves as the normalized format that can be converted to any target platform
- */
-@Serializable
-data class BaseIR(
-    var backgroundColor: ColorRgba? = null,
-    var opacity: Double? = null,
-    var typography: TypographyIR? = null,
-    var spacing: SpacingIR? = null,
-    var size: SizeIR? = null,
-    var layout: LayoutIR? = null,
-    var border: BorderIR? = null,
-    // Fallback bucket for properties not yet modeled in the IR
-    var other: Map<String, String>? = null,
+data class PropertyIR(
+    val name: String,
+    val sizeName: String? = null,
+    val numericSizeValue: Double? = null,
+    val stringSizeValue: String? = null,
+    val color: ColorRgba? = null,
+    val value: String? = null
 )
 
 /**
@@ -113,9 +34,8 @@ data class BaseIR(
 @Serializable
 data class SelectorIR(
     val condition: String,
-    val styles: BaseIR
+    val styles: MutableList<PropertyIR>
 )
-
 
 /**
  * Represents a media query in the intermediate representation
@@ -125,9 +45,8 @@ data class SelectorIR(
 @Serializable
 data class MediaIR(
     val query: String,
-    val styles: BaseIR
+    val styles: MutableList<PropertyIR>
 )
-
 
 /**
  * Represents a component in the intermediate representation
@@ -139,7 +58,7 @@ data class MediaIR(
 @Serializable
 data class ComponentIR(
     val name: String,
-    val base: BaseIR,
+    val styles: MutableList<PropertyIR>,
     val selectors: List<SelectorIR>,
     val media: List<MediaIR>
 )
