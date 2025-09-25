@@ -1,9 +1,9 @@
 package app.parsing.css.styles
 
-import app.BaseIR
+import app.PropertyIR
 import kotlinx.serialization.json.JsonObject
 
-fun parseScrollingAndInteraction(styles: JsonObject, acc: BaseIR): BaseIR {
+fun parseScrollingAndInteraction(styles: JsonObject, acc: MutableList<PropertyIR>): MutableList<PropertyIR> {
 	return acc
 }
 
