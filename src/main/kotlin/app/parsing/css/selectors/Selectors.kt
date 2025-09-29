@@ -1,20 +1,14 @@
 package app.parsing.css.selectors
 
-import app.SelectorIR
-import app.PropertyIR
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import app.IRSelector
+import app.IRProperty
+import app.parsing.css.CssSelector
+import app.parsing.css.properties.PropertiesParser
 
-fun parseSelectors(arr: JsonArray?, baseParser: (JsonObject) -> MutableList<PropertyIR>): List<SelectorIR> {
-	if (arr == null) return emptyList()
-	return arr.mapNotNull { el ->
-		val obj = el.jsonObject
-		val whenStr = obj["when"]?.jsonPrimitive?.content ?: return@mapNotNull null
-		val styles = obj["styles"]?.jsonObject ?: return@mapNotNull null
-		SelectorIR(condition = whenStr, styles = baseParser(styles))
-	}
+fun parseSelectors(selectors: List<CssSelector>?): List<IRSelector> {
+    if (selectors == null) return emptyList()
+    return selectors.map { sel ->
+        val props = PropertiesParser.parse(sel.properties)
+        IRSelector(condition = sel.selector, properties = props)
+    }
 }
-
-

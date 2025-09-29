@@ -11,7 +11,7 @@ import kotlinx.serialization.json.*
  * This is the entry-point "parsing" transformation: input styles → IR.
  */
 
-fun parsing(doc: JsonObject, from: String): DocumentIR {
+fun parsing(doc: JsonObject, from: String): IRDocument {
     return when (from.lowercase()) {
         "css" -> cssParsing(doc)
         "compose" -> composeParsing(doc)

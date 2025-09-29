@@ -3,70 +3,102 @@ package app
 import kotlinx.serialization.Serializable
 
 /**
- * Represents an RGBA color value with integer RGB components (0-255) and double alpha (0.0-1.0)
+ * Represents a typed argument inside a CSS function.
  */
 @Serializable
-data class ColorRgba(
-    val r: Int,
-    val g: Int,
-    val b: Int,
-    val a: Double
+data class IRFunctionArg(
+    val raw: String,
+    val length: IRLength? = null,
+    val keyword: IRKeyword? = null,
+    val function: IRFunction? = null,
+    val color: IRColor? = null,
+    val url: IRUrl? = null
 )
 
 /**
- * property captured from CSS-like inputs
+ * A generic Intermediate Representation function, e.g. calc(), var(), min(), clamp(), color-mix().
  */
 @Serializable
-data class PropertyIR(
+data class IRFunction(
     val name: String,
-    val sizeName: String? = null,
-    val numericSizeValue: Double? = null,
-    val stringSizeValue: String? = null,
-    val color: ColorRgba? = null,
-    val value: String? = null
+    val args: List<IRFunctionArg>
 )
 
 /**
- * Represents a selector in the intermediate representation
- * @param when The condition for the selector (e.g., ":hover", ":focus")
- * @param styles The styles to apply when the selector is matched
+ * Primitive Intermediate Representation value types
  */
 @Serializable
-data class SelectorIR(
+data class IRLength(
+    val value: Double? = null,
+    val unit: String? = null,
+    val function: IRFunction? = null
+)
+
+@Serializable
+data class IRColor(
+    val raw: String? = null,
+    val function: IRFunction? = null
+)
+
+@Serializable
+data class IRUrl(
+    val url: String? = null,
+    val function: IRFunction? = null
+)
+
+@Serializable
+data class IRKeyword(
+    val value: String
+)
+
+/**
+ * Composite types
+ */
+@Serializable
+data class IRShadow(
+    val xOffset: IRLength? = null,
+    val yOffset: IRLength? = null,
+    val blur: IRLength? = null,
+    val spread: IRLength? = null,
+    val color: IRColor? = null,
+    val inset: Boolean = false
+)
+
+/**
+ * The main IR property.
+ */
+@Serializable
+data class IRProperty(
+    val propertyName: String,
+    val lengths: List<IRLength> = emptyList(),
+    val colors: List<IRColor> = emptyList(),
+    val urls: List<IRUrl> = emptyList(),
+    val keywords: List<IRKeyword> = emptyList(),
+    val shadows: List<IRShadow> = emptyList(),
+    val raw: String? = null
+)
+
+@Serializable
+data class IRSelector(
     val condition: String,
-    val styles: MutableList<PropertyIR>
+    val properties: MutableList<IRProperty>
 )
 
-/**
- * Represents a media query in the intermediate representation
- * @param query The media query string (e.g., "(min-width: 768px)")
- * @param styles The styles to apply when the media query is matched
- */
 @Serializable
-data class MediaIR(
+data class IRMedia(
     val query: String,
-    val styles: MutableList<PropertyIR>
+    val properties: MutableList<IRProperty>
 )
 
-/**
- * Represents a component in the intermediate representation
- * @param name Component name/identifier
- * @param base Base style properties
- * @param selectors List of conditional selectors (e.g., hover, focus states)
- * @param media List of media query definitions with their own selectors
- */
 @Serializable
-data class ComponentIR(
+data class IRComponent(
     val name: String,
-    val styles: MutableList<PropertyIR>,
-    val selectors: List<SelectorIR>,
-    val media: List<MediaIR>
+    val properties: MutableList<IRProperty>,
+    val selectors: List<IRSelector>,
+    val media: List<IRMedia>
 )
 
-/**
- * Root document containing all components in intermediate representation format
- */
 @Serializable
-data class DocumentIR(
-    val components: List<ComponentIR>
+data class IRDocument(
+    val components: List<IRComponent>
 )

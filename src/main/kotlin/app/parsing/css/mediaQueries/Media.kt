@@ -1,20 +1,15 @@
 package app.parsing.css.mediaQueries
 
-import app.MediaIR
-import app.PropertyIR
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import app.IRMedia
+import app.IRProperty
+import app.parsing.css.CssMedia
+import app.parsing.css.properties.PropertiesParser
 
-fun parseMedia(arr: JsonArray?, baseParser: (JsonObject) -> MutableList<PropertyIR>): List<MediaIR> {
-	if (arr == null) return emptyList()
-	return arr.mapNotNull { el ->
-		val obj = el.jsonObject
-		val query = obj["query"]?.jsonPrimitive?.content ?: return@mapNotNull null
-		val styles = obj["styles"]?.jsonObject ?: return@mapNotNull null
-		MediaIR(query = query, styles = baseParser(styles))
-	}
+fun parseMedia(media: List<CssMedia>?): List<IRMedia> {
+	if (media == null) return emptyList()
+    return media.map { m ->
+        IRMedia(query = m.query, properties = PropertiesParser.parse(m.properties))
+    }
 }
 
 

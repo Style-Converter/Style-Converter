@@ -11,7 +11,7 @@ import kotlinx.serialization.json.JsonObject
  * This is the entry-point logic transformation: IR → outputs.
  */
 
-fun logic(ir: DocumentIR, targets: Set<String>): Map<String, JsonObject> {
+fun logic(ir: IRDocument, targets: Set<String>): Map<String, JsonObject> {
     val outputs = mutableMapOf<String, JsonObject>()
     if ("compose" in targets) {
         outputs["androidStyles.json"] = generateCompose(ir)

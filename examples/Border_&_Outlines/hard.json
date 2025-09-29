@@ -1,7 +1,7 @@
 {
     "components": {
       "super-button": {
-        "styles": {
+        "properties": {
           "border": "calc(2px + 1vh) dashed rgba(255, 0, 255, 0.7)",
           "border-top-left-radius": "max(20%, 15px)",
           "border-top-right-radius": "clamp(5px, 10%, 25px)",
@@ -13,8 +13,8 @@
         },
         "selectors": [
           {
-            "when": ":hover",
-            "styles": {
+            "selector": ":hover",
+            "properties": {
               "border-image-source": "linear-gradient(45deg, red, yellow, green)",
               "border-image-slice": "10 30 fill",
               "border-image-width": "2rem",
@@ -27,8 +27,8 @@
             }
           },
           {
-            "when": ":active",
-            "styles": {
+            "selector": ":active",
+            "properties": {
               "border-block-start-width": "8px",
               "border-block-start-style": "double",
               "border-block-start-color": "lime",
@@ -42,7 +42,7 @@
       },
   
       "insane-card": {
-        "styles": {
+        "properties": {
           "border-image-source": "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><rect width=\"10\" height=\"10\" fill=\"red\"/></svg>')",
           "border-image-slice": "33% fill",
           "border-image-width": "5px 10px 15px 20px",
@@ -56,8 +56,8 @@
         },
         "selectors": [
           {
-            "when": ":hover",
-            "styles": {
+            "selector": ":hover",
+            "properties": {
               "outline-width": "thick",
               "outline-style": "groove",
               "outline-color": "hotpink",
@@ -68,7 +68,7 @@
       },
   
       "mega-modal": {
-        "styles": {
+        "properties": {
           "border-collapse": "collapse",
           "border-spacing": "2ch",
           "border-block": "calc(1vw + 1px) solid #333333",
@@ -83,7 +83,7 @@
       },
   
       "hyper-tooltip": {
-        "styles": {
+        "properties": {
           "border-top-width": "0",
           "border-top-style": "none",
           "border-top-color": "transparent",
@@ -104,8 +104,8 @@
         },
         "selectors": [
           {
-            "when": ":hover",
-            "styles": {
+            "selector": ":hover",
+            "properties": {
               "border-image-source": "linear-gradient(to bottom, #fff, #000)",
               "border-image-slice": "25%",
               "border-image-width": "1rem",
@@ -119,7 +119,7 @@
       },
   
       "quantum-badge": {
-        "styles": {
+        "properties": {
           "border": "0.25rem solid transparent",
           "border-image-source": "conic-gradient(from 45deg, red, yellow, lime, aqua, blue, magenta, red)",
           "border-image-slice": "1",

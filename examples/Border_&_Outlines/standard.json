@@ -1,7 +1,7 @@
 {
   "components": {
     "primary-button": {
-      "styles": {
+      "properties": {
         "border": "3px dashed #FF5733",
         "border-top": "5px solid #000000",
         "border-right": "2px dotted #00FF00",
@@ -16,15 +16,15 @@
       },
       "selectors": [
         {
-          "when": ":hover",
-          "styles": {
+          "selector": ":hover",
+          "properties": {
             "border-color": "red green blue yellow",
             "box-shadow": "0 0 5px 5px rgba(255,0,0,0.3)"
           }
         },
         {
-          "when": ":active",
-          "styles": {
+          "selector": ":active",
+          "properties": {
             "border-top-width": "8px",
             "border-top-style": "ridge",
             "border-top-color": "#FF0000",
@@ -35,7 +35,7 @@
       "media": [
         {
           "query": "(min-width: 768px)",
-          "styles": {
+          "properties": {
             "border-left-width": "20px",
             "border-left-style": "groove",
             "border-left-color": "purple"
@@ -45,7 +45,7 @@
     },
 
     "secondary-button": {
-      "styles": {
+      "properties": {
         "border-width": "1px 2px 3px 4px",
         "border-style": "solid dashed dotted double",
         "border-color": "black red green blue",
@@ -60,8 +60,8 @@
       },
       "selectors": [
         {
-          "when": ":hover",
-          "styles": {
+          "selector": ":hover",
+          "properties": {
             "border-block": "10px groove #FF00FF",
             "border-block-start-width": "5px",
             "border-block-start-style": "solid",
@@ -75,7 +75,7 @@
     },
 
     "danger-button": {
-      "styles": {
+      "properties": {
         "border-inline": "2px dotted #B00020",
         "border-inline-start-width": "5px",
         "border-inline-start-style": "double",
@@ -88,8 +88,8 @@
       },
       "selectors": [
         {
-          "when": ":hover",
-          "styles": {
+          "selector": ":hover",
+          "properties": {
             "outline": "1px dashed #FF0000",
             "box-shadow": "0px 0px 20px 5px rgba(176,0,32,0.5)"
           }
@@ -98,7 +98,7 @@
     },
 
     "input-field": {
-      "styles": {
+      "properties": {
         "border": "1px solid #CCCCCC",
         "border-radius": "4px",
         "outline-width": "0px",
@@ -107,8 +107,8 @@
       },
       "selectors": [
         {
-          "when": ":focus",
-          "styles": {
+          "selector": ":focus",
+          "properties": {
             "border-color": "#6200EE",
             "outline": "3px auto #6200EE",
             "box-shadow": "0 0 5px 2px #6200EE"
@@ -118,7 +118,7 @@
     },
 
     "card": {
-      "styles": {
+      "properties": {
         "border-image-source": "linear-gradient(to right, red, blue)",
         "border-image-slice": "30",
         "border-image-width": "10px",
@@ -132,8 +132,8 @@
       },
       "selectors": [
         {
-          "when": ":hover",
-          "styles": {
+          "selector": ":hover",
+          "properties": {
             "box-shadow": "0 8px 16px rgba(0,0,0,0.25)"
           }
         }
@@ -141,7 +141,7 @@
     },
 
     "modal": {
-      "styles": {
+      "properties": {
         "border-collapse": "separate",
         "border-spacing": "10px",
         "border": "3px double #333333",
@@ -151,7 +151,7 @@
     },
 
     "navbar": {
-      "styles": {
+      "properties": {
         "border-block-start": "5px solid #6200EE",
         "border-block-end": "10px dotted #FFFFFF",
         "border-inline-start": "8px double #FFFFFF",
@@ -162,7 +162,7 @@
     },
 
     "footer": {
-      "styles": {
+      "properties": {
         "border-top-width": "2px",
         "border-top-style": "solid",
         "border-top-color": "#CCCCCC",
@@ -173,7 +173,7 @@
     },
 
     "badge": {
-      "styles": {
+      "properties": {
         "border": "1px solid #03DAC6",
         "border-radius": "12px 0 12px 0",
         "box-shadow": "0px 0px 5px rgba(3,218,198,0.5)"
@@ -181,7 +181,7 @@
     },
 
     "alert": {
-      "styles": {
+      "properties": {
         "border-width": "2px",
         "border-style": "solid",
         "border-color": "#000000",
@@ -209,7 +209,7 @@
     },
 
     "tooltip": {
-      "styles": {
+      "properties": {
         "border": "1px dotted #333333",
         "border-top-left-radius": "2px",
         "border-bottom-right-radius": "8px",
@@ -219,7 +219,7 @@
     },
     
     "super-button": {
-      "styles": {
+      "properties": {
         "border": "calc(2px + 1vh) dashed rgba(255, 0, 255, 0.7)",
         "border-top-left-radius": "max(20%, 15px)",
         "border-top-right-radius": "clamp(5px, 10%, 25px)",
@@ -231,8 +231,8 @@
       },
       "selectors": [
         {
-          "when": ":hover",
-          "styles": {
+          "selector": ":hover",
+          "properties": {
             "border-image-source": "linear-gradient(45deg, red, yellow, green)",
             "border-image-slice": "10 30 fill",
             "border-image-width": "2rem",
@@ -245,8 +245,8 @@
           }
         },
         {
-          "when": ":active",
-          "styles": {
+          "selector": ":active",
+          "properties": {
             "border-block-start-width": "8px",
             "border-block-start-style": "double",
             "border-block-start-color": "lime",
@@ -260,7 +260,7 @@
     },
 
     "insane-card": {
-      "styles": {
+      "properties": {
         "border-image-source": "url('data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><rect width=\"10\" height=\"10\" fill=\"red\"/></svg>')",
         "border-image-slice": "33% fill",
         "border-image-width": "5px 10px 15px 20px",
@@ -274,8 +274,8 @@
       },
       "selectors": [
         {
-          "when": ":hover",
-          "styles": {
+          "selector": ":hover",
+          "properties": {
             "outline-width": "thick",
             "outline-style": "groove",
             "outline-color": "hotpink",
@@ -286,7 +286,7 @@
     },
 
     "mega-modal": {
-      "styles": {
+      "properties": {
         "border-collapse": "collapse",
         "border-spacing": "2ch",
         "border-block": "calc(1vw + 1px) solid #333333",
@@ -301,7 +301,7 @@
     },
 
     "hyper-tooltip": {
-      "styles": {
+      "properties": {
         "border-top-width": "0",
         "border-top-style": "none",
         "border-top-color": "transparent",
@@ -322,8 +322,8 @@
       },
       "selectors": [
         {
-          "when": ":hover",
-          "styles": {
+          "selector": ":hover",
+          "properties": {
             "border-image-source": "linear-gradient(to bottom, #fff, #000)",
             "border-image-slice": "25%",
             "border-image-width": "1rem",
@@ -337,7 +337,7 @@
     },
 
     "quantum-badge": {
-      "styles": {
+      "properties": {
         "border": "0.25rem solid transparent",
         "border-image-source": "conic-gradient(from 45deg, red, yellow, lime, aqua, blue, magenta, red)",
         "border-image-slice": "1",
