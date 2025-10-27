@@ -42,8 +42,10 @@ data class IRColor(
 
 @Serializable
 data class IRUrl(
-    val url: String? = null,
-    val function: IRFunction? = null
+    val raw: String,          
+    val value: String,        
+    val scheme: String,       
+    val quoted: Boolean = false
 )
 
 @Serializable

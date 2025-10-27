@@ -1,14 +1,24 @@
 package app.logic.compose
 
 import app.IRDocument
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlin.system.exitProcess
+import kotlinx.serialization.json.jsonObject
 
 /**
- * Placeholder for Compose output generation (to be implemented)
+ * Main entry point for Compose output generation
  */
-
 fun generateCompose(ir: IRDocument): JsonObject {
-    println("Compose output generation not yet implemented")
-    exitProcess(0)
+    // Build the Compose document from IR components
+    val composeDocument = SimpleComposeBuilder.buildComponents(ir)
+
+    // Serialize to JSON
+    val json = Json {
+        prettyPrint = true
+        encodeDefaults = true
+    }
+
+    val jsonString = json.encodeToString(composeDocument)
+    return json.parseToJsonElement(jsonString).jsonObject
 }

@@ -41,7 +41,7 @@ fun JsonInputToCssComponents(doc: JsonObject): CssComponents {
 
         val selectors = obj["selectors"]?.jsonArray?.mapNotNull { el ->
             val selObj = el.jsonObject
-            val selectorStr = selObj["when"]?.jsonPrimitive?.content ?: return@mapNotNull null
+            val selectorStr = selObj["selector"]?.jsonPrimitive?.content ?: return@mapNotNull null
             val selProps = toProperties(selObj["properties"]?.jsonObject) ?: emptyMap()
             CssSelector(selector = selectorStr, properties = selProps)
         }

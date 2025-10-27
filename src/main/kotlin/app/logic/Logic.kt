@@ -14,7 +14,7 @@ import kotlinx.serialization.json.JsonObject
 fun logic(ir: IRDocument, targets: Set<String>): Map<String, JsonObject> {
     val outputs = mutableMapOf<String, JsonObject>()
     if ("compose" in targets) {
-        outputs["androidStyles.json"] = generateCompose(ir)
+        outputs["composeOutput.json"] = generateCompose(ir)
     }
     if ("swiftui" in targets) {
         outputs["iosStyles.json"] = generateSwiftUI(ir)
