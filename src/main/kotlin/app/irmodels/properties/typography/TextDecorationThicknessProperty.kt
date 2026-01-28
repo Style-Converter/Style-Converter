@@ -1,6 +1,7 @@
 package app.irmodels.properties.typography
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,15 +25,19 @@ data class TextDecorationThicknessProperty(
     @Serializable
     sealed interface Thickness {
         @Serializable
+        @SerialName("auto")
         data class Auto(val unit: Unit = Unit) : Thickness
 
         @Serializable
+        @SerialName("from-font")
         data class FromFont(val unit: Unit = Unit) : Thickness
 
         @Serializable
+        @SerialName("length")
         data class LengthValue(val length: IRLength) : Thickness
 
         @Serializable
+        @SerialName("percentage")
         data class PercentageValue(val percentage: IRPercentage) : Thickness
     }
 }

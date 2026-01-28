@@ -1,6 +1,7 @@
 package app.irmodels.properties.typography
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -25,9 +26,11 @@ data class LineClampProperty(
     @Serializable
     sealed interface LineClamp {
         @Serializable
+        @SerialName("none")
         data class None(val unit: Unit = Unit) : LineClamp
 
         @Serializable
+        @SerialName("lines")
         data class Lines(val count: IRNumber) : LineClamp
     }
 }

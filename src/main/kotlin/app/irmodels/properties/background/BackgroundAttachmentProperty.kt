@@ -1,6 +1,7 @@
 package app.irmodels.properties.background
 
 import app.irmodels.IRProperty
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -9,7 +10,22 @@ data class BackgroundAttachmentProperty(
 ) : IRProperty {
     override val propertyName = "background-attachment"
 
-    enum class Attachment {
-        SCROLL, FIXED, LOCAL
+    @Serializable
+    sealed interface Attachment {
+        @Serializable
+        @SerialName("scroll")
+        data object SCROLL : Attachment
+
+        @Serializable
+        @SerialName("fixed")
+        data object FIXED : Attachment
+
+        @Serializable
+        @SerialName("local")
+        data object LOCAL : Attachment
+
+        @Serializable
+        @SerialName("global-keyword")
+        data class GlobalKeyword(val keyword: String) : Attachment
     }
 }

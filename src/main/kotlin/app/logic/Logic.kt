@@ -1,6 +1,6 @@
 package app.logic
 
-import app.*
+import app.irmodels.IRDocument
 import app.logic.compose.generateCompose
 import app.logic.swiftUI.generateSwiftUI
 import app.logic.css.generateCss

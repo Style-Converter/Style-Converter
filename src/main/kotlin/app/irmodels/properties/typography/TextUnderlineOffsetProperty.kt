@@ -1,6 +1,7 @@
 package app.irmodels.properties.typography
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,12 +25,15 @@ data class TextUnderlineOffsetProperty(
     @Serializable
     sealed interface Offset {
         @Serializable
+        @SerialName("auto")
         data class Auto(val unit: Unit = Unit) : Offset
 
         @Serializable
+        @SerialName("length")
         data class LengthValue(val length: IRLength) : Offset
 
         @Serializable
+        @SerialName("percentage")
         data class PercentageValue(val percentage: IRPercentage) : Offset
     }
 }

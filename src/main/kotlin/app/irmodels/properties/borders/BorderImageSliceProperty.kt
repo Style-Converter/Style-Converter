@@ -3,6 +3,7 @@ package app.irmodels.properties.borders
 import app.irmodels.IRProperty
 import app.irmodels.IRNumber
 import app.irmodels.IRPercentage
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -56,8 +57,10 @@ data class BorderImageSliceProperty(
 @Serializable
 sealed interface BorderImageSliceValue {
     @Serializable
+    @SerialName("number")
     data class Number(val value: IRNumber) : BorderImageSliceValue
 
     @Serializable
+    @SerialName("percentage")
     data class Percentage(val value: IRPercentage) : BorderImageSliceValue
 }

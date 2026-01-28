@@ -4,6 +4,7 @@ import app.irmodels.IRProperty
 import app.irmodels.IRLength
 import app.irmodels.IRNumber
 import app.irmodels.IRPercentage
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -52,14 +53,18 @@ data class BorderImageWidthProperty(
 @Serializable
 sealed interface BorderImageWidthValue {
     @Serializable
+    @SerialName("length")
     data class Length(val value: IRLength) : BorderImageWidthValue
 
     @Serializable
+    @SerialName("number")
     data class Number(val value: IRNumber) : BorderImageWidthValue
 
     @Serializable
+    @SerialName("percentage")
     data class Percentage(val value: IRPercentage) : BorderImageWidthValue
 
     @Serializable
+    @SerialName("auto")
     data object Auto : BorderImageWidthValue
 }

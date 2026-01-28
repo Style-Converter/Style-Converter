@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class TransitionTimingFunctionProperty(
-    val functions: List<AnimationTimingFunctionProperty.TimingFunction>
+    val functions: List<TimingFunction>
 ) : IRProperty {
     override val propertyName = "transition-timing-function"
 }

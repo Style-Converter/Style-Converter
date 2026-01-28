@@ -1,6 +1,7 @@
 package app.irmodels.properties.transforms
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -25,15 +26,19 @@ data class TranslateProperty(
     @Serializable
     sealed interface Translate {
         @Serializable
+        @SerialName("none")
         data class None(val unit: Unit = Unit) : Translate
 
         @Serializable
+        @SerialName("1d")
         data class OneAxis(val x: LengthPercentage) : Translate
 
         @Serializable
+        @SerialName("2d")
         data class TwoAxis(val x: LengthPercentage, val y: LengthPercentage) : Translate
 
         @Serializable
+        @SerialName("3d")
         data class ThreeAxis(
             val x: LengthPercentage,
             val y: LengthPercentage,
@@ -44,9 +49,11 @@ data class TranslateProperty(
     @Serializable
     sealed interface LengthPercentage {
         @Serializable
+        @SerialName("length")
         data class LengthValue(val length: IRLength) : LengthPercentage
 
         @Serializable
+        @SerialName("percentage")
         data class PercentageValue(val percentage: IRPercentage) : LengthPercentage
     }
 }

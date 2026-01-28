@@ -1,6 +1,7 @@
 package app.irmodels.properties.content
 
 import app.irmodels.IRProperty
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,13 +25,24 @@ data class QuotesProperty(
     @Serializable
     sealed interface Quotes {
         @Serializable
+        @SerialName("none")
         data class None(val unit: Unit = Unit) : Quotes
 
         @Serializable
+        @SerialName("auto")
         data class Auto(val unit: Unit = Unit) : Quotes
 
         @Serializable
+        @SerialName("pairs")
         data class QuotePairs(val pairs: List<QuotePair>) : Quotes
+
+        @Serializable
+        @SerialName("keyword")
+        data class Keyword(val keyword: String) : Quotes
+
+        @Serializable
+        @SerialName("raw")
+        data class Raw(val value: String) : Quotes
     }
 
     @Serializable

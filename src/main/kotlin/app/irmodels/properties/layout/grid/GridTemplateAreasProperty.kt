@@ -1,6 +1,7 @@
 package app.irmodels.properties.layout.grid
 
 import app.irmodels.IRProperty
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -12,9 +13,11 @@ data class GridTemplateAreasProperty(
     @Serializable
     sealed interface GridTemplateAreas {
         @Serializable
+        @SerialName("none")
         data class None(val unit: Unit = Unit) : GridTemplateAreas
 
         @Serializable
+        @SerialName("areas")
         data class Areas(val rows: List<List<String>>) : GridTemplateAreas
     }
 }

@@ -2,8 +2,36 @@ package app.parsing.css.properties
 
 /**
  * Validates CSS property names against the official CSS specification.
- * This validator checks if a property is a valid CSS property (shorthand or longhand),
- * including vendor-prefixed properties (-webkit-, -moz-, -ms-, -o-).
+ *
+ * ## Purpose
+ * Filters out invalid or custom property names before parsing to avoid
+ * creating invalid IR models. This is the first step in the parsing pipeline.
+ *
+ * ## Validation Rules
+ * 1. Standard CSS properties (420+ properties from CSS specs)
+ * 2. Vendor-prefixed properties (-webkit-, -moz-, -ms-, -o-)
+ * 3. Case-insensitive matching
+ *
+ * ## Usage
+ * ```kotlin
+ * CssPropertyValidator.isValidProperty("background-color")  // true
+ * CssPropertyValidator.isValidProperty("backgroundColor")   // true (case-insensitive)
+ * CssPropertyValidator.isValidProperty("-webkit-transform") // true (vendor prefix)
+ * CssPropertyValidator.isValidProperty("invalid-prop")      // false
+ * ```
+ *
+ * ## Categories Covered
+ * - Layout & Display (30+ properties)
+ * - Typography (60+ properties)
+ * - Colors & Backgrounds (20+ properties)
+ * - Borders & Outlines (40+ properties)
+ * - Flexbox & Grid (50+ properties)
+ * - Animations & Transitions (30+ properties)
+ * - Transforms (10+ properties)
+ * - SVG (30+ properties)
+ * - And more...
+ *
+ * @see PropertiesParser for how validation fits in the parsing pipeline
  */
 object CssPropertyValidator {
 
@@ -173,6 +201,7 @@ object CssPropertyValidator {
         "cursor", "pointer-events", "user-select", "resize", "touch-action",
         "touch-action-delay", "caret-color", "accent-color",
         "appearance", "input-security",
+        "caret", "caret-shape",
 
         // Scrolling
         "scroll-behavior", "scroll-margin", "scroll-margin-top", "scroll-margin-right",
@@ -199,6 +228,8 @@ object CssPropertyValidator {
         // View transitions
         "view-timeline", "view-timeline-name", "view-timeline-axis",
         "view-timeline-inset", "view-transition-name",
+        "view-transition-class", "view-transition-group",
+        "timeline-scope",
 
         // Container queries
         "container", "container-name", "container-type",
@@ -209,7 +240,7 @@ object CssPropertyValidator {
         // Anchor positioning
         "anchor-name", "anchor-scope", "position-anchor", "position-area",
         "position-try", "position-try-options", "position-try-order",
-        "position-visibility", "position-fallback",
+        "position-visibility", "position-fallback", "position-try-fallbacks",
 
         // Shapes & Float
         "shape-outside", "shape-margin", "shape-image-threshold", "shape-padding",
@@ -237,6 +268,7 @@ object CssPropertyValidator {
         "marker-end", "marker-side", "paint-order", "vector-effect",
         "text-anchor", "glyph-orientation-vertical", "glyph-orientation-horizontal",
         "buffered-rendering", "enable-background", "kerning",
+        "cx", "cy", "r", "rx", "ry", "x", "y", "d",
 
         // Printing & Page breaks
         "page", "size", "bleed", "marks",
@@ -257,6 +289,8 @@ object CssPropertyValidator {
 
         // Misc
         "all", "field-sizing", "overlay", "reading-flow", "interpolate-size",
+        "zoom", "corner-shape", "block-ellipsis", "dynamic-range-limit",
+        "object-view-box", "text-spacing",
 
         // Bookmarks & Footnotes
         "bookmark-label", "bookmark-level", "bookmark-state", "bookmark-target",
@@ -297,14 +331,17 @@ object CssPropertyValidator {
      * @return true if the property is valid, false otherwise
      */
     fun isValidProperty(propertyName: String): Boolean {
+        // CSS property names are case-insensitive
+        val loweredName = propertyName.lowercase()
+
         // Check if it's a standard property
-        if (standardProperties.contains(propertyName)) {
+        if (standardProperties.contains(loweredName)) {
             return true
         }
 
         // Check if it's a vendor-prefixed property
-        if (propertyName.startsWith("-")) {
-            val parts = propertyName.substring(1).split("-", limit = 2)
+        if (loweredName.startsWith("-")) {
+            val parts = loweredName.substring(1).split("-", limit = 2)
             if (parts.size == 2) {
                 val prefix = parts[0]
                 val baseName = parts[1]

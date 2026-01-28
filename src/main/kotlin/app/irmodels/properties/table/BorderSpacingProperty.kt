@@ -1,6 +1,7 @@
 package app.irmodels.properties.table
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -11,9 +12,11 @@ data class BorderSpacingProperty(
 
     @Serializable
     sealed interface Spacing {
+        @SerialName("single")
         @Serializable
         data class Single(val length: IRLength) : Spacing
 
+        @SerialName("two-values")
         @Serializable
         data class TwoValues(
             val horizontal: IRLength,

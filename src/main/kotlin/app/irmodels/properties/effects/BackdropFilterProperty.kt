@@ -1,44 +1,24 @@
 package app.irmodels.properties.effects
 
-import app.irmodels.*
+import app.irmodels.IRProperty
+import app.irmodels.properties.color.FilterFunction
 import kotlinx.serialization.Serializable
 
+/**
+ * Represents the CSS `backdrop-filter` property.
+ * Uses the shared FilterFunction type from color package.
+ */
 @Serializable
 data class BackdropFilterProperty(
-    val filters: List<FilterFunction>
+    val filters: List<FilterFunction>? = null,
+    val raw: String? = null,  // For complex expressions with var(), etc.
+    val keyword: String? = null  // For inherit, initial, unset, etc.
 ) : IRProperty {
     override val propertyName = "backdrop-filter"
 
-    @Serializable
-    sealed interface FilterFunction {
-        @Serializable
-        data class None(val unit: kotlin.Unit = kotlin.Unit) : FilterFunction
-
-        @Serializable
-        data class Blur(val radius: IRLength) : FilterFunction
-
-        @Serializable
-        data class Brightness(val amount: IRPercentage) : FilterFunction
-
-        @Serializable
-        data class Contrast(val amount: IRPercentage) : FilterFunction
-
-        @Serializable
-        data class Grayscale(val amount: IRPercentage) : FilterFunction
-
-        @Serializable
-        data class Saturate(val amount: IRPercentage) : FilterFunction
-
-        @Serializable
-        data class Sepia(val amount: IRPercentage) : FilterFunction
-
-        @Serializable
-        data class Invert(val amount: IRPercentage) : FilterFunction
-
-        @Serializable
-        data class Opacity(val amount: IRPercentage) : FilterFunction
-
-        @Serializable
-        data class HueRotate(val angle: IRAngle) : FilterFunction
+    companion object {
+        fun fromFilters(filters: List<FilterFunction>) = BackdropFilterProperty(filters = filters)
+        fun fromRaw(value: String) = BackdropFilterProperty(raw = value)
+        fun fromKeyword(keyword: String) = BackdropFilterProperty(keyword = keyword)
     }
 }

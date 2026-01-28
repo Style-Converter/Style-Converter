@@ -1,41 +1,50 @@
 package app.irmodels.properties.transforms
 
-import app.irmodels.*
+import app.irmodels.IRLength
+import app.irmodels.IRPercentage
+import app.irmodels.IRProperty
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
  * Represents the CSS `perspective-origin` property.
  *
- * ## CSS Property
- * **Syntax**: `perspective-origin: <position>`
+ * Sets the origin point for the perspective property (the vanishing point).
  *
- * ## Description
- * Determines the position at which the viewer is looking at 3D-transformed elements.
- *
- * @property x The horizontal position
- * @property y The vertical position
- * @see [MDN perspective-origin](https://developer.mozilla.org/en-US/docs/Web/CSS/perspective-origin)
+ * Syntax: <position> (x y coordinates)
  */
 @Serializable
-data class PerspectiveOriginProperty(
-    val x: PositionValue,
-    val y: PositionValue
-) : IRProperty {
-    override val propertyName = "perspective-origin"
+data class PerspectiveOriginProperty(val x: PerspectiveOriginValue, val y: PerspectiveOriginValue) : IRProperty {
+    override val propertyName: String = "perspective-origin"
+}
+
+@Serializable
+sealed interface PerspectiveOriginValue {
+    @Serializable
+    @SerialName("length")
+    data class Length(val value: IRLength) : PerspectiveOriginValue
 
     @Serializable
-    sealed interface PositionValue {
-        @Serializable
-        data class LengthValue(val length: IRLength) : PositionValue
+    @SerialName("percentage")
+    data class Percentage(val value: IRPercentage) : PerspectiveOriginValue
 
-        @Serializable
-        data class PercentageValue(val percentage: IRPercentage) : PositionValue
+    @Serializable
+    @SerialName("left")
+    data object Left : PerspectiveOriginValue
 
-        @Serializable
-        data class Keyword(val value: PositionKeyword) : PositionValue
-    }
+    @Serializable
+    @SerialName("center")
+    data object Center : PerspectiveOriginValue
 
-    enum class PositionKeyword {
-        LEFT, CENTER, RIGHT, TOP, BOTTOM
-    }
+    @Serializable
+    @SerialName("right")
+    data object Right : PerspectiveOriginValue
+
+    @Serializable
+    @SerialName("top")
+    data object Top : PerspectiveOriginValue
+
+    @Serializable
+    @SerialName("bottom")
+    data object Bottom : PerspectiveOriginValue
 }

@@ -1,0 +1,732 @@
+# Claude Context - Style Converter Project
+
+> **READ THIS FILE FIRST** - Essential context for working on this project
+
+## Project Summary
+
+**Style-Converter** is a Kotlin/JVM CLI tool that converts JSON-based CSS-like style definitions into platform-specific UI code (Android Jetpack Compose and iOS SwiftUI).
+
+**Current Status**: ✅ Parsing complete, 🎉 **NEW: Advanced Compose generator with ContentScope support integrated!**
+
+## Key Architecture Points
+
+### Pipeline Flow
+```
+JSON Input
+  ↓
+JsonInputParser (extract component data)
+  ↓
+PropertyValidator (validate CSS property names)
+  ↓
+ShorthandExpander (expand 62 shorthands → longhands)
+  ↓
+PropertyParser (parse to IRProperty instances from irmodels/)
+SelectorParser (parse to IRSelector instances)
+MediaQueryParser (parse to IRMedia instances)
+  ↓
+ComponentBuilder (assemble IRComponent from irmodels/)
+  ↓
+DocumentBuilder (assemble IRDocument from irmodels/)
+  ↓
+IR Model (IRDocument with 510 longhand properties)
+  ↓
+PropertyAnalyzer (detect wrapper needs: flex, position, scroll, SVG, etc.)
+  ↓
+ComponentStructureBuilder (build wrapper hierarchy + ContentScope)
+  ↓
+CodeGenerator (generate final Kotlin/Swift code)
+  ↓
+Platform Code (Compose/SwiftUI)
+```
+
+### Technology Stack
+- **Language**: Kotlin 2.1.0
+- **Runtime**: Java 21+
+- **Build**: Gradle 8.14
+- **JSON**: kotlinx.serialization-json 1.6.3
+- **CLI**: `./gradlew run --args="convert --from css --to compose,swiftui -i <input> -o <outDir>"`
+
+### NEW IR Model Structure (irmodels/ folder) - **510 LONGHAND PROPERTIES IMPLEMENTED**
+
+**🎉 COMPREHENSIVE**: 510 longhand property files created representing 94.5% CSS coverage!
+
+**IMPORTANT: Shorthands vs Longhands**
+- ✅ **IR Model contains ONLY longhands** - Shorthand properties (margin, padding, border, flex, etc.) are NOT in the IR
+- ✅ **Shorthands expanded during parsing** - ShorthandRegistry expands 50+ shorthands into longhands before IR creation
+- ✅ **Example**: `margin: 10px 20px` → `margin-top: 10px`, `margin-right: 20px`, `margin-bottom: 10px`, `margin-left: 20px`
+- ✅ **62 shorthands supported**: margin, padding, border*, flex, grid*, animation, transition, background, overflow, inset*, scroll-*, place-*, column-rule, list-style, mask*, and many logical properties
+
+**Architecture Constraints:**
+- ✅ **Pure data representation** - NO conversion logic in IR classes
+- ✅ **ONE longhand property per file** - Each longhand CSS property gets its own dedicated file
+  - Example: `FontSizeProperty.kt` handles ONLY `font-size`
+  - Example: `ColorProperty.kt` handles ONLY `color`
+  - Example: `PaddingTopProperty.kt` handles ONLY `padding-top` (NOT padding shorthand)
+- ✅ **Maximum 100 lines per file** - Forces modular, maintainable code
+- ✅ **Precise type constraints** - Use enums/sealed interfaces for exact valid values
+  - Example: `text-align` accepts ONLY: start, end, left, right, center, justify, match-parent
+  - Example: `font-weight` accepts ONLY: 100-900 (numeric) or normal/bold/lighter/bolder
+- ✅ **Organized by category** - Grouped in folders (typography, color, spacing, etc.)
+- ✅ **Fully serializable** - All types annotated with `@Serializable`
+
+**Base Types (`irmodels/base/`):**
+- `IRProperty` - Simple interface with only `propertyName` field
+- `IRLength` - Value + unit enum (PX, DP, EM, REM, PERCENT, VW, VH, PT, CM, MM, IN, EX, CH, FR)
+- `IRColor` - Sealed interface: Hex | RGB | HSL | Named | CurrentColor | Transparent
+- `IRKeyword`, `IRUrl`, `IRPercentage`, `IRNumber`, `IRAngle`, `IRTime`
+
+**Implementation Progress - ALL MAJOR CATEGORIES COMPLETE:**
+
+✅ **Typography (`irmodels/typography/`)** - 100+ longhand properties
+- Font properties: FontFamily, FontSize, FontWeight, FontStyle, FontStretch, FontDisplay, FontKerning, etc.
+- Text properties: TextAlign, TextAlignLast, TextTransform, TextOverflow, TextIndent, TextOrientation
+- Text decoration: TextDecorationLine, TextDecorationStyle, TextDecorationColor, TextDecorationThickness, TextDecorationSkip
+- Font synthesis: FontSynthesisWeight, FontSynthesisStyle, FontSynthesisSmallCaps, FontSynthesisPosition
+- Font variants: FontVariantNumeric, FontVariantLigatures, FontVariantEastAsian, FontVariantAlternates, FontVariantPosition, FontVariantEmoji
+- Spacing: LineHeight, LetterSpacing, WordSpacing
+- Layout: WhiteSpace, WordBreak, VerticalAlign, Direction, WritingMode, UnicodeBidi
+- Other: TextShadow, Hyphens, TabSize, HangingPunctuation, TextUnderlinePosition, etc.
+
+✅ **Color & Effects (`irmodels/color/`)** - 7 properties
+- Color, BackgroundColor, Opacity
+- MixBlendMode, BackgroundBlendMode
+- Filter, BackdropFilter (with 10 filter functions each)
+
+✅ **Spacing & Sizing (`irmodels/spacing/`)** - 29 longhand properties
+- Padding: PaddingTop, PaddingRight, PaddingBottom, PaddingLeft, PaddingBlockStart, PaddingBlockEnd, PaddingInlineStart, PaddingInlineEnd
+- Margin: MarginTop, MarginRight, MarginBottom, MarginLeft, MarginBlockStart, MarginBlockEnd, MarginInlineStart, MarginInlineEnd, MarginTrim
+- Gap: RowGap, ColumnGap
+- Sizing: Width, Height, MinWidth, MaxWidth, MinHeight, MaxHeight
+- Logical sizing: BlockSize, InlineSize, MaxBlockSize, MinBlockSize, MaxInlineSize, MinInlineSize
+- AspectRatio
+
+✅ **Transforms (`irmodels/transforms/`)** - 2 properties
+- Transform (with 20+ transform functions: translate, rotate, scale, skew, matrix, perspective)
+- TransformOrigin
+
+✅ **Layout - Flexbox (`irmodels/layout/flexbox/`)** - 11 longhand properties
+- Display, FlexDirection, FlexWrap
+- JustifyContent, AlignItems, AlignContent, AlignSelf
+- FlexGrow, FlexShrink, FlexBasis, Order
+
+✅ **Layout - Position & Float (`irmodels/layout/position/`)** - 14 longhand properties
+- Position: Position, Top, Right, Bottom, Left, ZIndex
+- Logical positioning: InsetBlockStart, InsetBlockEnd, InsetInlineStart, InsetInlineEnd
+- Float: Float, Clear
+- Advanced: AnchorName, PositionAnchor
+
+✅ **Layout - Grid (`irmodels/layout/grid/`)** - 17 longhand properties
+- GridTemplateColumns, GridTemplateRows, GridTemplateAreas
+- GridAutoRows, GridAutoColumns, GridAutoFlow
+- GridColumnStart, GridColumnEnd, GridRowStart, GridRowEnd, GridArea
+- GridColumnGap, GridRowGap (deprecated, use gap)
+- JustifyItems, JustifySelf, AlignItems, AlignSelf
+- GridAutoColumns, GridAutoRows
+
+✅ **Borders & Outlines (`irmodels/borders/`)** - 67 longhand properties
+- Border per-side width: BorderTopWidth, BorderRightWidth, BorderBottomWidth, BorderLeftWidth
+- Border per-side style: BorderTopStyle, BorderRightStyle, BorderBottomStyle, BorderLeftStyle
+- Border per-side color: BorderTopColor, BorderRightColor, BorderBottomColor, BorderLeftColor
+- Border radius: BorderTopLeftRadius, BorderTopRightRadius, BorderBottomRightRadius, BorderBottomLeftRadius
+- Border logical: BorderBlockStart/End/Width/Style/Color, BorderInlineStart/End/Width/Style/Color
+- Border image: BorderImageSource, BorderImageSlice, BorderImageWidth, BorderImageOutset, BorderImageRepeat
+- Outline: OutlineWidth, OutlineStyle, OutlineColor, OutlineOffset
+- BoxShadow (multi-shadow support)
+
+✅ **Background (`irmodels/background/`)** - 10 longhand properties
+- BackgroundImage (with linear/radial/conic gradient support)
+- BackgroundSize, BackgroundRepeat, BackgroundAttachment, BackgroundClip, BackgroundOrigin
+- BackgroundColor
+- BackgroundPositionX, BackgroundPositionY
+- BackgroundBlendMode
+
+✅ **Animations & Transitions (`irmodels/animations/`)** - 23 longhand properties
+- Animation: AnimationName, AnimationDuration, AnimationTimingFunction, AnimationDelay, AnimationIterationCount, AnimationDirection, AnimationFillMode, AnimationPlayState, AnimationComposition
+- Animation advanced: AnimationTimeline, AnimationRangeStart, AnimationRangeEnd
+- Transition: TransitionProperty, TransitionDuration, TransitionTimingFunction, TransitionDelay, TransitionBehavior
+- View transitions: ViewTransitionName, ViewTimelineAxis, ViewTimelineInset
+- Timelines: TimelineScope, ScrollTimeline, ScrollTimelineAxis, ScrollTimelineAttachment
+
+✅ **Effects & Visibility (`irmodels/effects/`)** - 21 longhand properties
+- Visibility, OverflowX, OverflowY, OverflowBlock, OverflowInline, OverflowClipMargin
+- ClipPath, Clip
+- Mask: MaskImage, MaskPosition, MaskSize, MaskRepeat, MaskOrigin, MaskClip, MaskComposite, MaskMode, MaskType
+- MaskBorder: MaskBorderSource, MaskBorderSlice, MaskBorderWidth, MaskBorderOutset, MaskBorderRepeat, MaskBorderMode
+
+✅ **Interactions (`irmodels/interactions/`)** - 6 properties
+- Cursor, PointerEvents, UserSelect
+- TouchAction, ScrollBehavior, Resize
+
+✅ **Content & Lists (`irmodels/content/` & `irmodels/lists/`)** - 4 properties
+- Content (for ::before/::after)
+- ListStyleType, ListStylePosition, ListStyleImage
+
+✅ **Table Layout (`irmodels/table/`)** - 5 properties
+- TableLayout, BorderCollapse, BorderSpacing, CaptionSide, EmptyCells
+
+✅ **Multi-Column Layout (`irmodels/columns/`)** - 9 longhand properties
+- ColumnCount, ColumnWidth, ColumnGap (same as gap)
+- ColumnRuleWidth, ColumnRuleStyle, ColumnRuleColor
+- ColumnSpan, ColumnFill, Columns
+
+✅ **Images & Objects (`irmodels/images/`)** - 4 properties
+- ObjectFit, ObjectPosition
+- ImageRendering, ImageOrientation
+
+✅ **Performance & Optimization (`irmodels/performance/`)** - 3 properties
+- WillChange, Contain, Isolation
+
+✅ **Scrolling & Snap Points (`irmodels/scrolling/`)** - 48 longhand properties
+- Overflow: OverflowAnchor, OverflowWrap, OverscrollBehavior, OverscrollBehaviorX, OverscrollBehaviorY
+- Scroll snap: ScrollSnapType, ScrollSnapAlign, ScrollSnapStop
+- Scroll margin: ScrollMarginTop, ScrollMarginRight, ScrollMarginBottom, ScrollMarginLeft, ScrollMarginBlockStart, ScrollMarginBlockEnd, ScrollMarginInlineStart, ScrollMarginInlineEnd
+- Scroll padding: ScrollPaddingTop, ScrollPaddingRight, ScrollPaddingBottom, ScrollPaddingLeft, ScrollPaddingBlockStart, ScrollPaddingBlockEnd, ScrollPaddingInlineStart, ScrollPaddingInlineEnd
+- Advanced: ScrollBehavior, ScrollStart, ScrollStartTarget, ScrollStartBlock, ScrollStartInline, ScrollStartX, ScrollStartY
+
+✅ **SVG Properties (`irmodels/svg/`)** - 24 properties
+- Fill, Stroke, StrokeWidth, StrokeDasharray, StrokeDashoffset, StrokeLinecap, StrokeLinejoin
+- Markers, PaintOrder, ShapeRendering, VectorEffect
+- And more SVG-specific properties
+
+✅ **Accessibility & Navigation (`irmodels/navigation/`)** - 4 properties
+- NavUp, NavDown, NavLeft, NavRight (for TV/accessibility)
+
+✅ **Math Properties (`irmodels/math/`)** - 3 properties
+- MathStyle, MathDepth, MathShift (for MathML)
+
+✅ **Print Media (`irmodels/print/`)** - 19 properties
+- PageBreakBefore, PageBreakAfter, PageBreakInside
+- BreakBefore, BreakAfter, BreakInside
+- Orphans, Widows, Page, Size, Bleed, Marks
+- BookmarkLabel, BookmarkLevel, BookmarkState, BookmarkTarget
+- FootnoteDisplay, FootnotePolicy, Leader
+
+✅ **Speech/Audio (`irmodels/speech/`)** - 27 properties (deprecated, for completeness)
+- Volume, Speak, SpeakAs
+- Pause, PauseBefore, PauseAfter, Rest, RestBefore, RestAfter
+- Cue, CueBefore, CueAfter
+- VoiceFamily, VoiceRate, VoicePitch, VoiceRange, VoiceStress, VoiceVolume, VoiceDuration, VoiceBalance
+- Pitch, PitchRange, Richness, Stress, SpeechRate
+- Azimuth, Elevation
+
+✅ **CSS Regions & Exclusions (`irmodels/regions/`)** - 10 properties (deprecated)
+- FlowInto, FlowFrom, RegionFragment, Continue, CopyInto
+- WrapFlow, WrapThrough, WrapBefore, WrapAfter, WrapInside
+
+✅ **Experimental (`irmodels/experimental/`)** - 3 properties
+- PresentationLevel, Running, StringSet
+
+📊 **Total: 510 longhand properties across 36 categories**
+
+**Shorthand Expansion (ShorthandRegistry):**
+The following 62 shorthands are automatically expanded into longhands during parsing:
+- **Spacing**: margin, padding, margin-block/inline, padding-block/inline, scroll-margin/padding (and all logical variants)
+- **Borders**: border, border-top/right/bottom/left, border-width/style/color, border-radius, border-block/inline (and all logical variants), border-image
+- **Layout**: flex, flex-flow, gap, grid, grid-row/column, place-items/content/self, inset, inset-block/inline
+- **Styling**: font, font-synthesis, text-decoration, background, background-position, overflow
+- **Animations**: animation, animation-range, transition
+- **Multi-column**: columns, column-rule
+- **Lists**: list-style
+- **Masks**: mask, mask-border
+- **Outlines**: outline
+
+**Core IR Model Classes (`irmodels/IRDocument.kt`):**
+- `IRDocument` - Root container for the entire style document
+- `IRComponent` - Single component with name, base properties, selectors, and media queries
+- `IRSelector` - Pseudo-class selector (e.g., :hover, :active, :focus) with conditional properties
+- `IRMedia` - Media query (e.g., screen size breakpoints) with responsive properties
+- `IRProperty` - Base interface for all property classes (defined in `irmodels/IRProperty.kt`)
+
+**Processing Pipeline:**
+```
+JSON Input → CssParsing → IRDocument → CodeGeneration → Platform Output
+                          (with 510 longhand IRProperty instances)
+```
+
+### Project Structure
+```
+src/main/kotlin/app/
+├── Main.kt                    # CLI entry point
+├── Models.kt                  # Legacy IR data classes (deprecated)
+├── irmodels/                  # ✨ Property-based IR architecture
+│   ├── IRDocument.kt          # Core IR model: IRDocument, IRComponent, IRSelector, IRMedia
+│   ├── IRProperty.kt          # Base interface for all properties
+│   ├── ValueTypes.kt          # Base value types: IRLength, IRColor, IRAngle, IRTime, etc.
+│   ├── README.md              # Documentation for the IR model
+│   ├── COMPARISON_REPORT.md   # CSS vs IR comparison report
+│   ├── typography/            # ✅ COMPLETE - 100+ longhand properties
+│   ├── color/                 # ✅ COMPLETE - 7 properties
+│   ├── spacing/               # ✅ COMPLETE - 29 longhand properties
+│   ├── transforms/            # ✅ COMPLETE - 2 properties
+│   ├── layout/                # ✅ COMPLETE
+│   │   ├── flexbox/           # ✅ 11 longhand properties
+│   │   ├── position/          # ✅ 14 longhand properties
+│   │   └── grid/              # ✅ 17 longhand properties
+│   ├── borders/               # ✅ COMPLETE - 67 longhand properties
+│   ├── background/            # ✅ COMPLETE - 8 files
+│   ├── animations/            # ✅ COMPLETE - 12 files
+│   ├── interactions/          # ✅ COMPLETE - 6 files
+│   ├── effects/               # ✅ COMPLETE - 7 files
+│   ├── content/               # ✅ COMPLETE - 1 file
+│   ├── lists/                 # ✅ COMPLETE - 3 files
+│   ├── table/                 # ✅ COMPLETE - 4 files
+│   ├── columns/               # ✅ COMPLETE - 6 files
+│   ├── images/                # ✅ COMPLETE - 2 files
+│   ├── performance/           # ✅ COMPLETE - 3 files
+│   └── scrolling/             # ✅ COMPLETE - 5 files
+├── parsing/
+│   ├── CssParser.kt           # 🎯 Main orchestrator: JSON → IRDocument
+│   ├── JsonInputParser.kt     # 📄 Parse raw JSON to component data
+│   ├── PropertyValidator.kt   # ✅ Validate CSS property names
+│   ├── ShorthandExpander.kt   # 📦 Coordinate shorthand expansion
+│   ├── PropertyParser.kt      # 🔧 Parse property values to IRProperty
+│   ├── SelectorParser.kt      # 🎨 Parse selectors to IRSelector
+│   ├── MediaQueryParser.kt    # 📱 Parse media queries to IRMedia
+│   ├── ComponentBuilder.kt    # 🧩 Build IRComponent from parsed data
+│   ├── DocumentBuilder.kt     # 📋 Build final IRDocument
+│   ├── expanders/             # Shorthand expander implementations
+│   │   ├── ExpansionRegistry.kt
+│   │   ├── MarginPaddingExpander.kt
+│   │   ├── BorderExpander.kt
+│   │   ├── FlexExpander.kt
+│   │   └── [other expanders...]
+│   └── parsers/               # Value parsers (primitives)
+│       ├── ParserRegistry.kt
+│       ├── ColorParser.kt
+│       ├── LengthParser.kt
+│       └── [other parsers...]
+└── logic/
+    ├── Logic.kt               # Generation orchestrator
+    ├── compose/               # Compose generator
+    ├── swiftUI/               # SwiftUI generator (pending)
+    └── css/                   # CSS generator (pending)
+```
+
+## Current Implementation Status
+
+### ✅ Completed
+- ✅ CLI with argument parsing
+- ✅ **NEW IR Model** - 510 longhand properties in `irmodels/` folder
+  - IRDocument, IRComponent, IRSelector, IRMedia (in `irmodels/IRDocument.kt`)
+  - 510 property classes across 36 categories
+  - Fully serializable with `@Serializable`
+- ✅ **Advanced Compose Generator Architecture**
+  - PropertyAnalyzer (631 lines) - Detects flex, position, scroll, SVG, filters, text needs
+  - ComponentStructureBuilder (640 lines) - Builds wrapper hierarchy with ContentScope
+  - CodeGenerator (423 lines) - Generates real Kotlin code with wrappers
+  - **Integration Complete** - PropertyAnalyzer → ComponentStructureBuilder → CodeGenerator working!
+- ✅ Shorthand expansion system (62 shorthands supported)
+- ✅ Property validation (280+ CSS properties)
+
+### 🚧 CSS Parsing System - Minimal Working Version (IN PROGRESS)
+
+**Current Status:** Implementing from scratch with minimal working version approach
+
+**Goal:** Parse `examples/mvp-border-per-side.json` → `IRDocument` with specific irmodels property classes
+
+**Architecture (New Implementation):**
+```
+JSON Input (examples/*.json)
+  ↓
+CssParsing.kt (orchestrator) ✅ EXISTS
+  ↓
+PropertiesParser.parse() 🚧 IMPLEMENTING NOW
+  ↓
+  Step 1: Validate properties (CssPropertyValidator) ✅ EXISTS
+  Step 2: Expand shorthands (ShorthandExpander) 🚧 TO BUILD
+  Step 3: Parse longhands (PropertyParser) 🚧 TO BUILD
+  ↓
+List<IRProperty> (specific irmodels classes)
+  ↓
+IRDocument, IRComponent, IRSelector, IRMedia ✅ EXISTS
+```
+
+**What Exists:**
+- ✅ `CssParsing.kt` - Orchestrator (calls PropertiesParser)
+- ✅ `CssPropertyValidator.kt` - Validates 280+ CSS properties
+- ✅ `Selectors.kt` & `Media.kt` - Call PropertiesParser
+- ✅ `IRDocument`, `IRComponent`, etc. - Target output
+- ✅ 475 irmodels property classes - Target types
+- ❌ **PropertiesParser.kt - EMPTY** (critical missing piece!)
+- ❌ No primitive parsers (color, length, keyword, number)
+- ❌ No shorthand expanders
+- ❌ No property-specific parsers
+
+**Minimal Working Version Plan (3-4 hours):**
+
+**Phase 1: Primitive Parsers** (1 hour)
+- 🚧 `LengthParser` - Parse "10px", "50%", "1.5em" → IRLength
+- 🚧 `ColorParser` - Parse "#FF0000", "rgb(...)" → IRColor
+- 🚧 `KeywordParser` - Parse "auto", "bold", "center" → validated keyword
+- 🚧 `NumberParser` - Parse "1.5", "600" → IRNumber
+
+**Phase 2: Shorthand Expanders** (30 min)
+- 🚧 `PaddingExpander` - "10px 20px" → 4 padding-* properties
+- 🚧 `MarginExpander` - Same logic as padding
+- 🚧 `BorderExpander` - "2px solid #000" → width/style/color
+- 🚧 `ShorthandRegistry` - Coordinate all expanders
+
+**Phase 3: Longhand Property Parsers** (1.5 hours)
+- 🚧 20 critical parsers:
+  - Colors: color, background-color, border-*-color (6 parsers)
+  - Spacing: padding-*, margin-* (8 parsers)
+  - Typography: font-size, font-weight, text-align (3 parsers)
+  - Borders: border-*-width (4 parsers)
+  - Layout: display, position (2 parsers)
+- 🚧 `PropertyParserRegistry` - Route property name → parser
+- 🚧 `GenericProperty` - Fallback for unmapped properties
+
+**Phase 4: PropertiesParser Implementation** (30 min)
+- 🚧 Implement `PropertiesParser.parse()`:
+  1. Validate with CssPropertyValidator
+  2. Expand shorthands with ShorthandRegistry
+  3. Parse longhands with PropertyParserRegistry
+  4. Return List<IRProperty>
+
+**Phase 5: Testing** (30 min)
+- 🚧 Run with `examples/mvp-border-per-side.json`
+- 🚧 Verify `tmpOutput.json` shows specific property types
+- 🚧 Verify no GenericProperty for common properties
+
+**Key Files Being Created:**
+- `src/main/kotlin/app/parsing/primitives/` - 4 primitive parsers
+- `src/main/kotlin/app/parsing/css/properties/shorthands/` - 3 expanders + registry
+- `src/main/kotlin/app/parsing/css/properties/longhands/` - 20 property parsers + registry
+- `src/main/kotlin/app/parsing/css/properties/PropertiesParser.kt` - Main implementation
+
+**Success Criteria:**
+1. ✅ Parse examples/mvp-border-per-side.json successfully
+2. ✅ Output shows specific types: `BackgroundColorProperty`, `PaddingTopProperty`, etc.
+3. ✅ Shorthands expand: `"padding": "10px 20px"` → 4 PaddingProperty instances
+4. ✅ No GenericProperty for the 20 implemented parsers
+5. ✅ Compose generator still works (uses IRPropertyAdapter)
+
+### 🎉 Major Breakthrough: ContentScope System
+**The generator now produces REAL working Compose code instead of just comments!**
+
+Before:
+```kotlin
+Box(modifier = modifier
+    /* Use Row or Column */ // ← Just a comment!
+)
+```
+
+After:
+```kotlin
+@Composable
+fun FlexContainer(
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit = {}  // ← Real ContentScope!
+) {
+    Row(modifier = modifier) {  // ← Real wrapper!
+        content()  // ← Children slot!
+    }
+}
+```
+
+**Properties Now Generating Real Code:**
+- ✅ `display: flex` → Real `Row`/`Column`/`FlowRow`/`FlowColumn` with ContentScope
+- ✅ `position: absolute` → Real `Box` with `align()` + `offset()`
+- ✅ `overflow: scroll` → Real `verticalScroll()`/`horizontalScroll()`
+- ✅ `gap` → Real `Arrangement.spacedBy()`
+- ✅ `justify-content`, `align-items` → Real `Arrangement` and `Alignment`
+
+### 🔄 In Progress
+- Specialized property parsers (borders, gradients, transforms)
+- Shorthand expansion (margin, padding, border, font, background)
+- SVG drawing implementation
+- Animation state management
+- Filter effects
+
+### ⏳ Next Up
+- SwiftUIGenerator implementation (IR → SwiftUI Swift)
+- Unit conversion (px → dp/sp for Android, px → pt for iOS)
+- Grid layout support
+- Advanced animations and transitions
+
+## Key Technical Decisions
+
+### Parsing & Validation
+1. **Input Format**: JSON with CSS-like properties (not actual CSS files)
+2. **Field Names**: Uses `"properties"` not `"styles"`, selector field is `"selector"` (parsed as condition in IR)
+3. **IR Model**: Strongly-typed Kotlin data classes with `@Serializable`
+4. **CSS Property Validation**: `CssPropertyValidator` validates 280+ standard CSS properties + vendor-prefixed properties
+   - Filters out invalid properties before parsing
+   - Supports `-webkit-`, `-moz-`, `-ms-`, `-o-` prefixes
+   - Logs removed invalid properties
+5. **Parser Pattern**: Registry-based system for extensibility
+6. **Shorthand Expansion**: `ShorthandRegistry` with 50+ expanders
+   - Expands before parsing: margin, padding, border, flex, grid, font, animation, transition, etc.
+   - Logical properties (margin-block, padding-inline, border-block, etc.)
+   - Each expander implements `ShorthandExpander` interface
+
+### Conversion Policies
+7. **Unit Policy**: px → dp (1:1), px → sp (rounded) for typography
+8. **Color Handling**: All formats (hex, rgb, hsl) normalized to RGBA
+9. **Outputs**: `composeOutput.json` (working), `iosStyles.json` (pending), `tmpOutput.json` (IR debug)
+
+### Shorthand Expansion Details
+The ShorthandRegistry expands 50+ CSS shorthands into longhands BEFORE parsing:
+
+**Spacing**: margin, padding, scroll-margin, scroll-padding (+ logical: margin-block/inline, etc.)
+**Borders**: border, border-top/right/bottom/left, border-width/style/color, border-radius (+ logical variants)
+**Flexbox**: flex, flex-flow
+**Grid**: gap, grid, grid-template, grid-row, grid-column, grid-area, place-items/content/self
+**Typography**: font, text-decoration
+**Positioning**: inset, inset-block/inline
+**Animations**: transition, animation
+**Background**: background, background-position, mask, border-image, mask-border
+**Misc**: overflow, columns, column-rule, list-style, outline, offset, all
+
+Each expander handles value splitting and assignment to longhand properties (e.g., `margin: 10px 20px` → `margin-top: 10px`, `margin-right: 20px`, etc.)
+
+## Important Files
+
+### Documentation (Read These First)
+- **`PARSING_ARCHITECTURE_PLAN.md`** - 🔥 **NEW** Detailed plan for CSS parsing refactor
+  - Complete architecture redesign
+  - One functionality per file principle
+  - Uses new `irmodels/` structure
+  - Implementation phases and checklist
+- `AiInstructions/ARCHITECTURE_PLAN.md` - System design and structure
+- `AiInstructions/MILESTONES.md` - Progress tracking and roadmap
+- `AiInstructions/DECISIONS.md` - Technical decisions and policies
+- `AiInstructions/INPUT_SCHEMA.md` - Input format specification
+- `AiInstructions/TESTING.md` - Testing strategy
+- `AiLogs/logs.md` - Development session logs
+
+### Property Reference Tables
+- **`PropertiesComparated/` folder** - **PRIMARY REFERENCE** for CSS/Compose/SwiftUI property mappings
+  - Contains 12 comprehensive markdown files with cross-platform property conversion tables
+  - Use these tables as the authoritative source for property conversions
+  - Files organized by category: Typography, Colors, Spacing, Transforms, Layout, Animations, etc.
+  - Each table shows CSS properties with their exact Jetpack Compose and SwiftUI equivalents
+  - Includes notes on platform differences, limitations, and workarounds
+  - **Reference these tables when implementing property conversions in the generator**
+
+### Core Source Files
+
+**Entry & Orchestration:**
+- `src/main/kotlin/app/Main.kt` - CLI entry and orchestration
+- `src/main/kotlin/app/Models.kt` - IR data model definitions
+- `src/main/kotlin/app/logic/Logic.kt` - Generation orchestration
+
+**Parsing (JSON CSS → IR) - 🔄 REFACTORING IN PROGRESS:**
+
+**NEW Architecture** (see `PARSING_ARCHITECTURE_PLAN.md`):
+- `src/main/kotlin/app/parsing/CssParser.kt` - Main orchestrator: JSON → IRDocument
+- `src/main/kotlin/app/parsing/JsonInputParser.kt` - Extract component data from JSON
+- `src/main/kotlin/app/parsing/PropertyValidator.kt` - Validate CSS property names
+- `src/main/kotlin/app/parsing/ShorthandExpander.kt` - Coordinate shorthand expansion
+- `src/main/kotlin/app/parsing/PropertyParser.kt` - Parse to IRProperty instances
+- `src/main/kotlin/app/parsing/SelectorParser.kt` - Parse to IRSelector instances
+- `src/main/kotlin/app/parsing/MediaQueryParser.kt` - Parse to IRMedia instances
+- `src/main/kotlin/app/parsing/ComponentBuilder.kt` - Build IRComponent
+- `src/main/kotlin/app/parsing/DocumentBuilder.kt` - Build IRDocument
+
+**OLD Architecture** (to be deprecated):
+- `src/main/kotlin/app/parsing/css/CssParsing.kt` - Legacy CSS→IR conversion
+- `src/main/kotlin/app/parsing/css/properties/PropertiesParser.kt` - **Property parsing orchestrator**
+  - Step 1: Filters invalid properties via `CssPropertyValidator`
+  - Step 2: Expands shorthands via `ShorthandRegistry`
+  - Step 3: Parses longhands via `PropertyParserRegistry`
+- `src/main/kotlin/app/parsing/css/properties/CssPropertyValidator.kt` - Validates 280+ CSS properties
+- `src/main/kotlin/app/parsing/css/properties/shorthand/ShorthandRegistry.kt` - 50+ shorthand expanders
+- `src/main/kotlin/app/parsing/css/properties/longhand/PropertyParserRegistry.kt` - Routes to parsers
+- `src/main/kotlin/app/parsing/css/properties/longhand/primitiveParsers/` - Primitive value parsers
+  - `ColorParser.kt`, `LengthParser.kt`, `KeywordParser.kt`, `FunctionParser.kt`, `ShadowParser.kt`, `UrlParser.kt`
+- `src/main/kotlin/app/parsing/css/selectors/Selectors.kt` - Selector parsing
+- `src/main/kotlin/app/parsing/css/mediaQueries/Media.kt` - Media query parsing
+
+**Generation (IR → Compose Code):**
+- `src/main/kotlin/app/logic/compose/SimpleComposeBuilder.kt` - Main Compose generator (integrates both systems)
+- **NEW: Advanced Generator Architecture (1700+ lines):**
+  - `src/main/kotlin/app/logic/compose/analysis/PropertyAnalyzer.kt` - Analyzes properties for wrapper needs
+  - `src/main/kotlin/app/logic/compose/generation/ComponentStructureBuilder.kt` - Builds component structure
+  - `src/main/kotlin/app/logic/compose/generation/CodeGenerator.kt` - Generates final Kotlin code
+- `src/main/kotlin/app/logic/compose/ComposeModels.kt` - Compose-specific models
+- `src/main/kotlin/app/logic/compose/converters/` - Property-to-modifier converters
+
+### Test Files
+- `examples/mvp-border-per-side.json` - MVP test case
+- `examples/test-comprehensive-properties.json` - Comprehensive property testing
+- `examples/Border_&_Outlines/` - Border property tests
+- `examples/Accessibility_&_Semantic_Adjustments/` - Accessibility tests
+- `testing/web/` - Next.js visual testing environment
+
+### Implementation Documentation (docs/)
+- **INTEGRATION_COMPLETE.md** - Details of the advanced generator integration (READ THIS!)
+- **CONTENTSCOPE_IMPLEMENTATION.md** - How ContentScope system works
+- **GENERATOR_OUTPUT_EXAMPLES.md** - Real examples of generated code
+- **IMPLEMENTATION_STATUS.md** - Current implementation progress
+- **FULL_IMPLEMENTATION_PLAN.md** - Complete architecture and implementation plan
+- **UNSUPPORTED_CSS_PROPERTIES.md** - 610+ CSS properties with Compose alternatives
+
+## Common Commands
+
+```bash
+# Build the project
+./gradlew build
+
+# Run the converter
+./gradlew run --args="convert --from css --to compose,swiftui -i examples/mvp-border-per-side.json -o out"
+
+# Check IR output (for debugging)
+cat out/tmpOutput.json | jq
+
+# Run tests (once implemented)
+./gradlew test
+
+# Visual testing (Next.js app)
+cd testing/web && npm run dev
+```
+
+## Critical Notes for Claude
+
+### Architecture Principles
+1. **IR Model is Central**: All conversions go through the IR. Never bypass it.
+2. **Parser Registry Pattern**: Use `PropertyParserRegistry` for specialized parsers, not ad-hoc parsing
+3. **Preserve Raw Values**: Always keep `raw` field in `IRProperty` for unparsed content
+4. **No Direct Code Gen**: Generators should operate on IR only, never on input JSON
+5. **Stateless Design**: No shared mutable state; each conversion is independent
+6. **Local Only**: No network calls, no external dependencies for parsing/generation
+
+### NEW: Advanced Compose Generator Architecture
+7. **Two-Path Generation**: SimpleComposeBuilder now uses TWO paths:
+   - **Simple modifiers** → Use existing buildModifiers() logic (padding, background, etc.)
+   - **Needs wrappers** → Use PropertyAnalyzer → ComponentStructureBuilder → CodeGenerator
+8. **ContentScope is Key**: Generated components accept `content: @Composable SomeScope.() -> Unit = {}`
+   - `RowScope` for Row/FlowRow wrappers
+   - `ColumnScope` for Column/FlowColumn wrappers
+   - `BoxScope` for Box wrappers
+   - Children get appropriate capabilities (weight(), align(), etc.)
+9. **No Children Knowledge Required**: Components work with 0, 1, or many children automatically
+10. **Real Code, Not Comments**: Properties like `display: flex`, `position: absolute`, `overflow: scroll` now generate WORKING Compose code with real wrappers
+
+### PropertyAnalyzer Detection Capabilities
+The PropertyAnalyzer (631 lines) detects:
+
+**Layout Requirements:**
+- **Flexbox**: `display: flex`, `flex-direction`, `justify-content`, `align-items`, `gap`, `flex-wrap`
+  - Determines: ROW, COLUMN, ROW_REVERSE, COLUMN_REVERSE, FLOW_ROW, FLOW_COLUMN
+  - Maps justify-content → Arrangement, align-items → Alignment
+- **Grid**: `display: grid`, `grid-template-columns/rows`, `grid-gap`, `grid-auto-flow`
+  - Parses column/row counts from templates (e.g., `repeat(3, 1fr)`)
+- **Position**: `position: absolute/fixed/sticky/relative`, `top/left/right/bottom`, `z-index`
+  - Creates outer positioning context + inner positioned element
+- **Scroll**: `overflow: scroll/auto`, `overflow-x`, `overflow-y`, `scroll-behavior: smooth`
+
+**State & Interaction:**
+- **Animations**: `animation-name/duration/timing-function/delay/iteration-count/direction/fill-mode`
+- **Transitions**: `transition-property/duration/timing-function/delay`
+- **Selectors**: `:hover`, `:active`, `:focus`, `:disabled` (from IRSelector list)
+- **Clickable**: `cursor: pointer` or presence of hover/active states
+
+**Advanced Features:**
+- **SVG Drawing**: `cx/cy/r`, `rx/ry`, `x/y/width/height`, `d` (path data), `fill/stroke`
+  - Detects shape type: CIRCLE, RECT, ELLIPSE, PATH, LINE, POLYGON
+- **Filters**: `filter`, `backdrop-filter`, `mix-blend-mode`
+- **Text**: `font-size/weight/style/family`, `text-align/decoration/transform`, `line-height`, `letter-spacing`
+
+**Responsive:**
+- **Media Queries**: Parses min-width/max-width from query strings
+  - Example: `"(min-width: 768px)"` → minWidth: 768
+
+### Golden Rules for Working on This Project
+11. **Always Read CLAUDE.md First**: This file has the most up-to-date context
+12. **Check docs/ for Implementation Details**: See INTEGRATION_COMPLETE.md, CONTENTSCOPE_IMPLEMENTATION.md, etc.
+13. **Unit Tests Pending**: M4 milestone - don't expect test files yet (manual testing only)
+14. **Test with Real Examples**: Use `examples/test-comprehensive-properties.json` to verify changes
+15. **Don't Regress Simple Modifiers**: The existing modifier generation must continue to work
+16. **PropertyAnalyzer is Stateless**: Each analyze() call is independent, no shared state
+17. **Two-Path Decision**: SimpleComposeBuilder checks `needsWrapperGeneration` to route to appropriate path
+
+## Recent Major Changes (2025-10-15)
+
+### 🎉 Advanced Compose Generator Integrated!
+
+**What Changed:**
+1. **Created new architecture** (1700+ lines of code):
+   - `PropertyAnalyzer.kt` - Detects when components need wrappers (flex, position, scroll, SVG, etc.)
+   - `ComponentStructureBuilder.kt` - Builds component structure with proper ContentScope
+   - `CodeGenerator.kt` - Generates final Kotlin code with real wrappers
+
+2. **Integrated into SimpleComposeBuilder.kt**:
+   - Now has **two generation paths**:
+     - Simple properties → existing modifier generation
+     - Complex properties → new wrapper generation
+   - Decision logic based on PropertyAnalyzer requirements
+
+3. **ContentScope System**:
+   - Components now accept scoped content parameters
+   - Children get appropriate capabilities (`weight()`, `align()`, etc.)
+   - Works with 0, 1, or many children without any knowledge of them
+
+**Before vs After:**
+```kotlin
+// BEFORE (Just comments):
+Box(modifier = modifier
+    /* Use Row or Column */
+)
+
+// AFTER (Real working code):
+@Composable
+fun FlexContainer(
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit = {}
+) {
+    Row(modifier = modifier) { content() }
+}
+```
+
+**Test Results:**
+- ✅ `display: flex; flex-wrap: wrap` → Real `FlowRow` with `FlowRowScope`
+- ✅ `overflow-y: scroll` → Real `verticalScroll()` with `BoxScope`
+- ✅ `column-gap: 20px` → Real `Arrangement.spacedBy(20.dp)`
+- ✅ Simple modifiers still work (no regression)
+
+### Previous Work
+- Removed old parser architecture (deleted `parsers/` subdirectories)
+- Implemented new property parsing system
+- Added comprehensive CSS property support
+- Created visual testing environment in `testing/web/`
+
+## Output Files (Generated)
+
+- `out/tmpOutput.json` - IR debug output (always generated)
+- `out/composeOutput.json` - Compose Kotlin code (WORKING with real wrappers!)
+- `out/androidStyles.json` - Alias for composeOutput.json
+- `out/iosStyles.json` - SwiftUI output (placeholder, "not yet implemented")
+- `out/cssStyles.json` - CSS output (future, when converting from other formats)
+
+## What Makes This Project Unique
+
+### The ContentScope Innovation
+This project solved a fundamental problem in CSS-to-UI-framework conversion:
+
+**Problem**: How do you generate layout containers (Row, Column, Box) without knowing if children exist or how many there are?
+
+**Solution**: Scoped content parameters with default empty implementations
+```kotlin
+content: @Composable RowScope.() -> Unit = {}
+```
+
+This allows:
+1. **Zero children** - Works fine with empty default
+2. **One child** - User passes single composable
+3. **Many children** - User passes any number of composables
+4. **Type safety** - Children get appropriate scope capabilities
+5. **CSS behavior** - Gap, positioning, scrolling work correctly
+
+### Technical Achievements
+1. **Full CSS Property Support** - 610+ properties documented with Compose alternatives
+2. **Modular Parser Architecture** - Registry-based system for extensibility
+3. **Two-Path Generation** - Simple modifiers vs. complex wrappers
+4. **Real Code Generation** - Not just guidance, but working Kotlin code
+5. **Visual Parity** - CSS behavior preserved in Compose (gap, positioning, scroll)
+
+### Why It Matters
+- **Designers → Developers** - Bridge the gap between design and implementation
+- **Cross-Platform** - Eventually CSS ↔ Compose ↔ SwiftUI
+- **Learning Tool** - Shows Compose equivalents for CSS patterns
+- **Productivity** - Automate tedious style conversion work

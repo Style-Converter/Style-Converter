@@ -1,6 +1,6 @@
 package app.logic.compose
 
-import app.IRDocument
+import app.irmodels.IRDocument
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject

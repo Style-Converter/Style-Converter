@@ -1,6 +1,7 @@
 package app.irmodels.properties.background
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,13 +25,28 @@ data class BackgroundPositionYProperty(
     @Serializable
     sealed interface PositionY {
         @Serializable
-        data class LengthValue(val length: IRLength) : PositionX
+        @SerialName("length")
+        data class LengthValue(val length: IRLength) : PositionY
 
         @Serializable
+        @SerialName("percentage")
         data class PercentageValue(val percentage: IRPercentage) : PositionY
 
         @Serializable
+        @SerialName("keyword")
         data class Keyword(val value: VerticalKeyword) : PositionY
+
+        @Serializable
+        @SerialName("edge-offset")
+        data class EdgeOffset(val edge: VerticalKeyword, val offset: IRLength) : PositionY
+
+        @Serializable
+        @SerialName("edge-offset-percent")
+        data class EdgeOffsetPercent(val edge: VerticalKeyword, val offset: IRPercentage) : PositionY
+
+        @Serializable
+        @SerialName("raw")
+        data class Raw(val value: String) : PositionY
     }
 
     enum class VerticalKeyword {

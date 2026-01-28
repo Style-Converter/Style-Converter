@@ -1,6 +1,6 @@
 package app.logic.css
 
-import app.IRDocument
+import app.irmodels.IRDocument
 import kotlinx.serialization.json.JsonObject
 import kotlin.system.exitProcess
 

@@ -9,47 +9,12 @@ data class FilterProperty(
 ) : IRProperty {
     override val propertyName = "filter"
 
-    @Serializable
+    @Serializable(with = FilterValueSerializer::class)
     sealed interface FilterValue {
-        @Serializable
-        data class None(val unit: Unit = Unit) : FilterValue
-
-        @Serializable
-        data class FilterList(val functions: List<FilterFunction>) : FilterValue
+        @Serializable data class None(val unit: Unit = Unit) : FilterValue
+        @Serializable data class FilterList(val functions: List<FilterFunction>) : FilterValue
+        @Serializable data class UrlReference(val url: String) : FilterValue
+        @Serializable data class Keyword(val keyword: String) : FilterValue
+        @Serializable data class Raw(val value: String) : FilterValue // For complex expressions with var(), etc.
     }
-}
-
-@Serializable
-sealed interface FilterFunction {
-    @Serializable
-    data class Blur(val radius: IRLength) : FilterFunction
-
-    @Serializable
-    data class Brightness(val amount: IRPercentage) : FilterFunction
-
-    @Serializable
-    data class Contrast(val amount: IRPercentage) : FilterFunction
-
-    @Serializable
-    data class Grayscale(val amount: IRPercentage) : FilterFunction
-
-    @Serializable
-    data class HueRotate(val angle: IRAngle) : FilterFunction
-
-    @Serializable
-    data class Invert(val amount: IRPercentage) : FilterFunction
-
-    @Serializable
-    data class Saturate(val amount: IRPercentage) : FilterFunction
-
-    @Serializable
-    data class Sepia(val amount: IRPercentage) : FilterFunction
-
-    @Serializable
-    data class DropShadow(
-        val offsetX: IRLength,
-        val offsetY: IRLength,
-        val blurRadius: IRLength?,
-        val color: IRColor?
-    ) : FilterFunction
 }

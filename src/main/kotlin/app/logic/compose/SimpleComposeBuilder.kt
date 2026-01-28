@@ -1,9 +1,17 @@
 package app.logic.compose
 
-import app.*
+import app.irmodels.IRDocument
+import app.irmodels.IRComponent
+import app.irmodels.IRProperty
+import app.irmodels.IRSelector
+import app.irmodels.IRMedia
+import app.irmodels.IRLength
+import app.irmodels.IRColor
 import app.logic.compose.analysis.PropertyAnalyzer
 import app.logic.compose.generation.ComponentStructureBuilder
 import app.logic.compose.generation.CodeGenerator
+import app.logic.compose.converters.PropertyValueExtractor
+import app.logic.compose.converters.*
 
 /**
  * Holds text styling properties for container components
@@ -197,15 +205,21 @@ object SimpleComposeBuilder {
      * Extract text styling properties that should be applied to child Text composables
      */
     private fun extractTextProperties(properties: List<IRProperty>): TextStyleProperties {
-        val color = properties.find { it.propertyName == "color" }?.colors?.firstOrNull()
+        val color = properties.find { it.propertyName == "color" }
+            ?.let { PropertyValueExtractor.getColor(it) }
             ?.let { convertColor(it) }
-        val fontSize = properties.find { it.propertyName == "font-size" }?.lengths?.firstOrNull()
+        val fontSize = properties.find { it.propertyName == "font-size" }
+            ?.let { PropertyValueExtractor.getLength(it) }
             ?.let { convertLength(it, useSp = true) }
-        val fontWeight = properties.find { it.propertyName == "font-weight" }?.keywords?.firstOrNull()?.value
-        val textAlign = properties.find { it.propertyName == "text-align" }?.keywords?.firstOrNull()?.value
-        val lineHeight = properties.find { it.propertyName == "line-height" }?.lengths?.firstOrNull()
+        val fontWeight = properties.find { it.propertyName == "font-weight" }
+            ?.let { PropertyValueExtractor.getKeyword(it) }
+        val textAlign = properties.find { it.propertyName == "text-align" }
+            ?.let { PropertyValueExtractor.getKeyword(it) }
+        val lineHeight = properties.find { it.propertyName == "line-height" }
+            ?.let { PropertyValueExtractor.getLength(it) }
             ?.let { convertLength(it, useSp = true) }
-        val letterSpacing = properties.find { it.propertyName == "letter-spacing" }?.lengths?.firstOrNull()
+        val letterSpacing = properties.find { it.propertyName == "letter-spacing" }
+            ?.let { PropertyValueExtractor.getLength(it) }
             ?.let { convertLength(it, useSp = true) }
 
         return TextStyleProperties(
@@ -222,33 +236,33 @@ object SimpleComposeBuilder {
         val modifiers = mutableListOf<String>()
 
         // Collect border properties for combined border modifier
-        val borderWidth = properties.find { it.propertyName == "border-width" }?.lengths?.firstOrNull()
-        val borderColor = properties.find { it.propertyName == "border-color" }?.colors?.firstOrNull()
-        val borderStyle = properties.find { it.propertyName == "border-style" }?.keywords?.firstOrNull()
+        val borderWidth = properties.find { it.propertyName == "border-width" }?.let { PropertyValueExtractor.getLength(it) }
+        val borderColor = properties.find { it.propertyName == "border-color" }?.let { PropertyValueExtractor.getColor(it) }
+        val borderStyle = properties.find { it.propertyName == "border-style" }?.let { PropertyValueExtractor.getKeyword(it) }
 
         // Individual border sides
-        val borderTopWidth = properties.find { it.propertyName == "border-top-width" }?.lengths?.firstOrNull()
-        val borderTopColor = properties.find { it.propertyName == "border-top-color" }?.colors?.firstOrNull()
-        val borderBottomWidth = properties.find { it.propertyName == "border-bottom-width" }?.lengths?.firstOrNull()
-        val borderBottomColor = properties.find { it.propertyName == "border-bottom-color" }?.colors?.firstOrNull()
-        val borderLeftWidth = properties.find { it.propertyName == "border-left-width" }?.lengths?.firstOrNull()
-        val borderLeftColor = properties.find { it.propertyName == "border-left-color" }?.colors?.firstOrNull()
-        val borderRightWidth = properties.find { it.propertyName == "border-right-width" }?.lengths?.firstOrNull()
-        val borderRightColor = properties.find { it.propertyName == "border-right-color" }?.colors?.firstOrNull()
+        val borderTopWidth = properties.find { it.propertyName == "border-top-width" }?.let { PropertyValueExtractor.getLength(it) }
+        val borderTopColor = properties.find { it.propertyName == "border-top-color" }?.let { PropertyValueExtractor.getColor(it) }
+        val borderBottomWidth = properties.find { it.propertyName == "border-bottom-width" }?.let { PropertyValueExtractor.getLength(it) }
+        val borderBottomColor = properties.find { it.propertyName == "border-bottom-color" }?.let { PropertyValueExtractor.getColor(it) }
+        val borderLeftWidth = properties.find { it.propertyName == "border-left-width" }?.let { PropertyValueExtractor.getLength(it) }
+        val borderLeftColor = properties.find { it.propertyName == "border-left-color" }?.let { PropertyValueExtractor.getColor(it) }
+        val borderRightWidth = properties.find { it.propertyName == "border-right-width" }?.let { PropertyValueExtractor.getLength(it) }
+        val borderRightColor = properties.find { it.propertyName == "border-right-color" }?.let { PropertyValueExtractor.getColor(it) }
 
         // Collect border radius properties for combined modifier
-        val topLeftRadius = properties.find { it.propertyName == "border-top-left-radius" }?.lengths?.firstOrNull()
-        val topRightRadius = properties.find { it.propertyName == "border-top-right-radius" }?.lengths?.firstOrNull()
-        val bottomLeftRadius = properties.find { it.propertyName == "border-bottom-left-radius" }?.lengths?.firstOrNull()
-        val bottomRightRadius = properties.find { it.propertyName == "border-bottom-right-radius" }?.lengths?.firstOrNull()
-        val borderRadius = properties.find { it.propertyName == "border-radius" }?.lengths?.firstOrNull()
+        val topLeftRadius = properties.find { it.propertyName == "border-top-left-radius" }?.let { PropertyValueExtractor.getLength(it) }
+        val topRightRadius = properties.find { it.propertyName == "border-top-right-radius" }?.let { PropertyValueExtractor.getLength(it) }
+        val bottomLeftRadius = properties.find { it.propertyName == "border-bottom-left-radius" }?.let { PropertyValueExtractor.getLength(it) }
+        val bottomRightRadius = properties.find { it.propertyName == "border-bottom-right-radius" }?.let { PropertyValueExtractor.getLength(it) }
+        val borderRadius = properties.find { it.propertyName == "border-radius" }?.let { PropertyValueExtractor.getLength(it) }
 
         // Collect padding properties for combined modifier
-        val paddingTop = properties.find { it.propertyName == "padding-top" }?.lengths?.firstOrNull()
-        val paddingRight = properties.find { it.propertyName == "padding-right" }?.lengths?.firstOrNull()
-        val paddingBottom = properties.find { it.propertyName == "padding-bottom" }?.lengths?.firstOrNull()
-        val paddingLeft = properties.find { it.propertyName == "padding-left" }?.lengths?.firstOrNull()
-        val padding = properties.find { it.propertyName == "padding" }?.lengths?.firstOrNull()
+        val paddingTop = properties.find { it.propertyName == "padding-top" }?.let { PropertyValueExtractor.getLength(it) }
+        val paddingRight = properties.find { it.propertyName == "padding-right" }?.let { PropertyValueExtractor.getLength(it) }
+        val paddingBottom = properties.find { it.propertyName == "padding-bottom" }?.let { PropertyValueExtractor.getLength(it) }
+        val paddingLeft = properties.find { it.propertyName == "padding-left" }?.let { PropertyValueExtractor.getLength(it) }
+        val padding = properties.find { it.propertyName == "padding" }?.let { PropertyValueExtractor.getLength(it) }
 
         // Track which properties we've already processed
         val processedProps = mutableSetOf<String>()
@@ -262,22 +276,22 @@ object SimpleComposeBuilder {
 
             // Build the drawWithContent block
             borderTopWidth?.let { width ->
-                val color = borderTopColor?.raw?.removePrefix("#") ?: "000000"
+                val color = borderTopColor?.let { PropertyValueExtractor.colorToHexString(it) } ?: "000000"
                 val widthDp = convertLength(width)
                 borderParts.add("drawLine(Color(0xFF$color), Offset(0f, ${widthDp}.toPx() / 2), Offset(size.width, ${widthDp}.toPx() / 2), ${widthDp}.toPx())")
             }
             borderBottomWidth?.let { width ->
-                val color = borderBottomColor?.raw?.removePrefix("#") ?: "000000"
+                val color = borderBottomColor?.let { PropertyValueExtractor.colorToHexString(it) } ?: "000000"
                 val widthDp = convertLength(width)
                 borderParts.add("drawLine(Color(0xFF$color), Offset(0f, size.height - ${widthDp}.toPx() / 2), Offset(size.width, size.height - ${widthDp}.toPx() / 2), ${widthDp}.toPx())")
             }
             borderLeftWidth?.let { width ->
-                val color = borderLeftColor?.raw?.removePrefix("#") ?: "000000"
+                val color = borderLeftColor?.let { PropertyValueExtractor.colorToHexString(it) } ?: "000000"
                 val widthDp = convertLength(width)
                 borderParts.add("drawLine(Color(0xFF$color), Offset(${widthDp}.toPx() / 2, 0f), Offset(${widthDp}.toPx() / 2, size.height), ${widthDp}.toPx())")
             }
             borderRightWidth?.let { width ->
-                val color = borderRightColor?.raw?.removePrefix("#") ?: "000000"
+                val color = borderRightColor?.let { PropertyValueExtractor.colorToHexString(it) } ?: "000000"
                 val widthDp = convertLength(width)
                 borderParts.add("drawLine(Color(0xFF$color), Offset(size.width - ${widthDp}.toPx() / 2, 0f), Offset(size.width - ${widthDp}.toPx() / 2, size.height), ${widthDp}.toPx())")
             }
@@ -358,22 +372,22 @@ object SimpleComposeBuilder {
                 // Layout - Size
                 "width" -> prop.lengths.firstOrNull()?.let {
                     // Handle percentage widths properly
-                    if (it.unit == "%") {
+                    if (it.unit == app.irmodels.IRLength.LengthUnit.PERCENT) {
                         if (it.value == 100.0) {
                             "fillMaxWidth()"
                         } else {
-                            "fillMaxWidth(${it.value!! / 100}f)"
+                            "fillMaxWidth(${it.value / 100}f)"
                         }
                     } else {
                         "width(${convertLength(it)})"
                     }
                 }
                 "height" -> prop.lengths.firstOrNull()?.let {
-                    if (it.unit == "%") {
+                    if (it.unit == app.irmodels.IRLength.LengthUnit.PERCENT) {
                         if (it.value == 100.0) {
                             "fillMaxHeight()"
                         } else {
-                            "fillMaxHeight(${it.value!! / 100}f)"
+                            "fillMaxHeight(${it.value / 100}f)"
                         }
                     } else {
                         "height(${convertLength(it)})"
@@ -446,9 +460,8 @@ object SimpleComposeBuilder {
                 }
 
                 // Appearance - Opacity
-                "opacity" -> prop.lengths.firstOrNull()?.let {
-                    val opacity = it.value ?: 1.0
-                    if (opacity != 1.0) "alpha(${opacity}f)" else null
+                "opacity" -> PropertyValueExtractor.getOpacity(prop)?.let { alpha ->
+                    if (alpha != 1.0) "alpha(${alpha}f)" else null
                 }
 
                 // Text properties (now handled via ProvideTextStyle wrapper in generateComposableCode)
@@ -540,12 +553,13 @@ object SimpleComposeBuilder {
                 // Transform properties
                 "transform" -> {
                     // Handle transform: scale(0.98)
-                    if (prop.raw?.contains("scale") == true) {
-                        val scaleMatch = Regex("scale\\(([0-9.]+)\\)").find(prop.raw)
+                    val rawValue = prop.raw
+                    if (rawValue?.contains("scale") == true) {
+                        val scaleMatch = Regex("scale\\(([0-9.]+)\\)").find(rawValue)
                         scaleMatch?.groupValues?.get(1)?.let { "scale(${it}f)" }
                     } else {
                         // Other transforms not yet supported
-                        prop.raw?.let { "/* transform: $it - parse and use rotate(), scale(), offset() */" }
+                        rawValue?.let { "/* transform: $it - parse and use rotate(), scale(), offset() */" }
                     }
                 }
                 "rotate" -> prop.lengths.firstOrNull()?.let {
@@ -885,15 +899,15 @@ object SimpleComposeBuilder {
 
                 // Logical Properties (writing-mode aware)
                 "block-size" -> prop.lengths.firstOrNull()?.let {
-                    if (it.unit == "%") {
-                        if (it.value == 100.0) "fillMaxHeight()" else "fillMaxHeight(${it.value!! / 100}f)"
+                    if (it.unit == IRLength.LengthUnit.PERCENT) {
+                        if (it.value == 100.0) "fillMaxHeight()" else "fillMaxHeight(${it.value / 100}f)"
                     } else {
                         "height(${convertLength(it)})" // Maps to height in LTR
                     }
                 }
                 "inline-size" -> prop.lengths.firstOrNull()?.let {
-                    if (it.unit == "%") {
-                        if (it.value == 100.0) "fillMaxWidth()" else "fillMaxWidth(${it.value!! / 100}f)"
+                    if (it.unit == IRLength.LengthUnit.PERCENT) {
+                        if (it.value == 100.0) "fillMaxWidth()" else "fillMaxWidth(${it.value / 100}f)"
                     } else {
                         "width(${convertLength(it)})" // Maps to width in LTR
                     }
@@ -1528,7 +1542,10 @@ object SimpleComposeBuilder {
                     prop.keywords.firstOrNull()?.let { "/* border-*-style: ${it.value} - property not yet mapped to Compose */" }
                 }
                 "border-top-color", "border-right-color", "border-bottom-color", "border-left-color" -> {
-                    prop.colors.firstOrNull()?.let { "/* border-*-color: ${convertColor(it)} - property not yet mapped to Compose */" }
+                    prop.colors.firstOrNull()?.let {
+                        val color = convertColor(it)
+                        "/* ${prop.propertyName}: $color - individual side colors in states require drawWithContent with remember { mutableStateOf() } for dynamic colors */"
+                    }
                 }
 
                 // Background position (variants)
@@ -1967,8 +1984,9 @@ object SimpleComposeBuilder {
                 // Default case for any unhandled property
                 else -> {
                     // For any unhandled property, add a comment with the raw value
-                    if (prop.raw != null && prop.raw.isNotBlank()) {
-                        "/* ${prop.propertyName}: ${prop.raw} - property not yet mapped to Compose */"
+                    val rawValue = prop.raw
+                    if (rawValue != null && rawValue.isNotBlank()) {
+                        "/* ${prop.propertyName}: $rawValue - property not yet mapped to Compose */"
                     } else {
                         null
                     }
@@ -2007,84 +2025,50 @@ object SimpleComposeBuilder {
     }
 
     private fun convertLength(length: IRLength, useSp: Boolean = false): String {
-        val value = length.value ?: 0.0
-        val unit = length.unit ?: "px"
+        val value = length.value
+        val unit = length.unit
 
-        return when (unit.lowercase()) {
-            "px" -> "${value.toInt()}.${if (useSp) "sp" else "dp"}"
-            "rem", "em" -> "${value}.em"
-            "%" -> "${(value / 100)}f"
+        return when (unit) {
+            IRLength.LengthUnit.PX, IRLength.LengthUnit.DP -> "${value.toInt()}.${if (useSp) "sp" else "dp"}"
+            IRLength.LengthUnit.SP -> "${value.toInt()}.sp"
+            IRLength.LengthUnit.REM, IRLength.LengthUnit.EM -> "${value}.em"
+            IRLength.LengthUnit.PERCENT -> "${(value / 100)}f"
             else -> "${value.toInt()}.${if (useSp) "sp" else "dp"}"
         }
     }
 
     private fun convertColor(color: IRColor): String {
-        val raw = color.raw ?: return "Color.Transparent"
+        // Use normalized sRGB if available (handles all static color formats)
+        color.srgb?.let { srgb ->
+            val a = (srgb.a * 255).toInt().coerceIn(0, 255)
+            val r = (srgb.r * 255).toInt().coerceIn(0, 255)
+            val g = (srgb.g * 255).toInt().coerceIn(0, 255)
+            val b = (srgb.b * 255).toInt().coerceIn(0, 255)
+            return "Color(0x%02X%02X%02X%02X)".format(a, r, g, b)
+        }
 
-        return if (raw.startsWith("#")) {
-            val hex = raw.removePrefix("#")
-            when (hex.length) {
-                3 -> {
-                    val r = hex[0].toString().repeat(2)
-                    val g = hex[1].toString().repeat(2)
-                    val b = hex[2].toString().repeat(2)
-                    "Color(0xFF$r$g$b)"
-                }
-                6 -> "Color(0xFF$hex)"
-                8 -> {
-                    val rgb = hex.substring(0, 6)
-                    val alpha = hex.substring(6, 8)
-                    "Color(0x$alpha$rgb)"
-                }
-                else -> "Color.Transparent"
-            }
-        } else if (raw.startsWith("rgba")) {
-            // Parse rgba(r, g, b, a) format
-            "/* ${raw} - convert to Color */"
-        } else {
-            // Handle named colors
-            when (raw.lowercase()) {
-                "transparent" -> "Color.Transparent"
-                "black" -> "Color.Black"
-                "white" -> "Color.White"
-                "red" -> "Color.Red"
-                "green" -> "Color.Green"
-                "blue" -> "Color.Blue"
-                "yellow" -> "Color.Yellow"
-                "cyan" -> "Color.Cyan"
-                "magenta" -> "Color.Magenta"
-                "gray", "grey" -> "Color.Gray"
-                else -> "/* color: $raw */"
-            }
+        // Fallback for dynamic colors that couldn't be normalized
+        return when (val repr = color.representation) {
+            is IRColor.ColorRepresentation.Transparent -> "Color.Transparent"
+            is IRColor.ColorRepresentation.CurrentColor -> "LocalContentColor.current"
+            is IRColor.ColorRepresentation.ColorMix -> "/* color-mix() - runtime evaluation needed */"
+            is IRColor.ColorRepresentation.LightDark -> "/* light-dark() - use MaterialTheme.colorScheme */"
+            else -> "/* dynamic color: ${color.raw ?: "unknown"} */"
         }
     }
 
-    private fun convertShadow(shadow: IRShadow): String {
-        // Get shadow values
-        val xOffset = shadow.xOffset?.value ?: 0.0
-        val yOffset = shadow.yOffset?.value ?: 0.0
-        val blur = shadow.blur?.value ?: 0.0
-        val spread = shadow.spread?.value ?: 0.0
-
-        // Estimate elevation from blur
-        val elevation = when {
-            blur <= 0.0 -> 0
-            blur <= 3.0 -> 1
-            blur <= 6.0 -> 2
-            blur <= 8.0 -> 4
-            blur <= 12.0 -> 6
-            blur <= 16.0 -> 8
-            else -> 12
-        }
-
-        return if (xOffset == 0.0 && yOffset >= 0.0 && !shadow.inset) {
-            // Simple elevation shadow
-            "shadow(${elevation}.dp)"
-        } else if (shadow.inset) {
-            "/* inset shadow not supported in Compose - use custom drawing */"
-        } else {
-            // Complex shadow with offset
-            "/* shadow: ${xOffset.toInt()}dp ${yOffset.toInt()}dp ${blur.toInt()}dp - use graphicsLayer */"
+    private fun convertShadow(shadow: Any): String {
+        return when (shadow) {
+            is app.irmodels.properties.borders.BoxShadowProperty.Shadow -> {
+                val elevation = shadow.blurRadius?.value ?: shadow.offsetY.value
+                // Use simplified color conversion with normalized sRGB
+                val color = shadow.color?.let { irColor ->
+                    "Color(0x${PropertyValueExtractor.colorToHexStringWithAlpha(irColor)})"
+                } ?: "Color.Black"
+                // Compose shadow() uses elevation (blur radius approximation) and ambientColor/spotColor
+                "shadow(elevation = ${elevation.toInt()}.dp, ambientColor = $color, spotColor = $color)"
+            }
+            else -> "/* box-shadow - unsupported format */"
         }
     }
 
@@ -2109,12 +2093,28 @@ object SimpleComposeBuilder {
                 textProperties.fontSize?.let { styleProps.add("fontSize = $it") }
                 textProperties.fontWeight?.let {
                     val weight = when (it.lowercase()) {
-                        "bold" -> "FontWeight.Bold"
-                        "normal" -> "FontWeight.Normal"
-                        "light" -> "FontWeight.Light"
-                        "medium" -> "FontWeight.Medium"
-                        "semibold" -> "FontWeight.SemiBold"
-                        else -> "FontWeight.Normal"
+                        "bold", "700" -> "FontWeight.Bold"
+                        "normal", "400" -> "FontWeight.Normal"
+                        "light", "300" -> "FontWeight.Light"
+                        "medium", "500" -> "FontWeight.Medium"
+                        "semibold", "600" -> "FontWeight.SemiBold"
+                        "thin", "100" -> "FontWeight.Thin"
+                        "extralight", "200" -> "FontWeight.ExtraLight"
+                        "extrabold", "800" -> "FontWeight.ExtraBold"
+                        "black", "900" -> "FontWeight.Black"
+                        else -> it.toIntOrNull()?.let { num ->
+                            when {
+                                num <= 100 -> "FontWeight.Thin"
+                                num <= 200 -> "FontWeight.ExtraLight"
+                                num <= 300 -> "FontWeight.Light"
+                                num <= 400 -> "FontWeight.Normal"
+                                num <= 500 -> "FontWeight.Medium"
+                                num <= 600 -> "FontWeight.SemiBold"
+                                num <= 700 -> "FontWeight.Bold"
+                                num <= 800 -> "FontWeight.ExtraBold"
+                                else -> "FontWeight.Black"
+                            }
+                        } ?: "FontWeight.Normal"
                     }
                     styleProps.add("fontWeight = $weight")
                 }

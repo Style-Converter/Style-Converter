@@ -1,6 +1,7 @@
 package app.irmodels.properties.scrolling
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,9 +25,11 @@ data class ScrollbarColorProperty(
     @Serializable
     sealed interface ScrollbarColor {
         @Serializable
+        @SerialName("auto")
         data class Auto(val unit: Unit = Unit) : ScrollbarColor
 
         @Serializable
+        @SerialName("colors")
         data class Colors(
             val thumb: IRColor,
             val track: IRColor
