@@ -139,12 +139,28 @@ object BackgroundImagePropertyParser : PropertyParser {
         val funcName = if (repeating) "repeating-conic-gradient" else "conic-gradient"
         val content = TokenizationUtils.extractFunctionContent(value, funcName) ?: return null
 
-        // Simplified parsing: just extract color stops
         val parts = TokenizationUtils.splitByComma(content)
-        val colorStops = parts.mapNotNull { parseColorStop(it.trim()) }
+        if (parts.isEmpty()) return null
+
+        // Handle "from <angle>" and/or "at <position>" prefix before color stops
+        var fromAngle: IRAngle? = null
+        var colorStopStart = 0
+        val firstPart = parts[0].trim()
+
+        if (firstPart.startsWith("from ")) {
+            val afterFrom = firstPart.removePrefix("from ").trim()
+            val atIndex = afterFrom.indexOf(" at ")
+            val anglePart = if (atIndex >= 0) afterFrom.substring(0, atIndex).trim() else afterFrom
+            fromAngle = AngleParser.parse(anglePart)
+            colorStopStart = 1
+        } else if (firstPart.startsWith("at ")) {
+            colorStopStart = 1
+        }
+
+        val colorStops = parts.drop(colorStopStart).mapNotNull { parseColorStop(it.trim()) }
         if (colorStops.isEmpty()) return null
 
-        return BackgroundImageProperty.BackgroundImage.ConicGradient(null, null, colorStops, repeating)
+        return BackgroundImageProperty.BackgroundImage.ConicGradient(fromAngle, null, colorStops, repeating)
     }
 
     private fun parseColorStop(value: String): BackgroundImageProperty.ColorStop? {

@@ -28,8 +28,10 @@ object BorderSideApplier {
     fun applyBorders(modifier: Modifier, config: AllBordersConfig): Modifier {
         if (!config.hasBorders) return modifier
 
-        // For uniform borders, use simple border modifier
-        if (config.isUniform && config.top.hasBorder) {
+        // For uniform SOLID borders, use simple border modifier (fast path)
+        // Non-solid styles (dashed, dotted) must use the drawBehind path with PathEffect
+        val topStyle = config.top.style ?: LineStyle.SOLID
+        if (config.isUniform && config.top.hasBorder && topStyle == LineStyle.SOLID) {
             val width = config.top.width ?: 1.dp
             val color = config.top.color ?: Color.Black
             return modifier.border(width, color)

@@ -393,45 +393,45 @@ object StyleApplier {
     fun applyConfig(modifier: Modifier, config: StyleConfig): Modifier {
         var result = modifier
 
-        // 1. Layout (sizing, spacing, position)
-        result = LayoutFacade.applyToModifier(result, config.layout)
+        // CSS rendering model: transforms, clip, opacity, and visibility apply to the
+        // ENTIRE element (including background). In Compose, modifier order is outer→inner,
+        // so these "whole-element" effects must come FIRST (outermost) in the chain.
 
-        // 2. Borders (sides and radius)
-        result = BordersFacade.apply(result, config.borders)
+        // 1. Interactions (visibility/alpha) — outermost: hides entire element
+        result = InteractionApplier.applyInteraction(result, config.interactions)
 
-        // 2.5. Border image requires BorderImageApplier.BorderImageBox composable
-        // because it needs async image loading. Check config.borderImage.hasBorderImage
-        // and use BorderImageBox in renderer instead of modifier chain.
-
-        // 3. Colors (background, opacity)
-        result = ColorApplier.applyColors(result, config.colors)
-
-        // 4. Effects (filters, shadows, clip-path)
-        result = EffectsFacade.apply(result, config.effects)
-
-        // 4.5. Mask (applied after effects for proper compositing)
-        if (config.mask.hasMask) {
-            result = MaskApplier.applyMask(result, config.mask)
-        }
-
-        // 5. Transforms
+        // 2. Transforms — rotate/scale/skew the entire element including bg
         result = TransformApplier.applyTransforms(result, config.transforms)
 
-        // 5.5. Writing mode (vertical text, rotation)
+        // 2.5. Writing mode (vertical text, rotation)
         if (config.writingMode.hasWritingMode) {
             result = WritingModeApplier.applyWritingMode(result, config.writingMode)
         }
 
-        // 6. Overflow (clipping and scrolling)
+        // 3. Effects (filters, clip-path, shadows) — clip/filter the element
+        result = EffectsFacade.apply(result, config.effects)
+
+        // 3.5. Mask (applied after clip for proper compositing)
+        if (config.mask.hasMask) {
+            result = MaskApplier.applyMask(result, config.mask)
+        }
+
+        // 4. Layout (sizing, spacing, position)
+        result = LayoutFacade.applyToModifier(result, config.layout)
+
+        // 5. Borders (sides and radius)
+        result = BordersFacade.apply(result, config.borders)
+
+        // 6. Colors (background, opacity)
+        result = ColorApplier.applyColors(result, config.colors)
+
+        // 7. Overflow (clipping and scrolling)
         result = OverflowApplier.applyOverflow(result, config.overflow)
 
-        // 6.5. Scroll behavior (overscroll, snap)
+        // 7.5. Scroll behavior (overscroll, snap)
         if (config.scroll.hasScrollConfig) {
             result = ScrollApplier.applyScroll(result, config.scroll)
         }
-
-        // 7. Interactions (visibility, pointer events)
-        result = InteractionApplier.applyInteraction(result, config.interactions)
 
         return result
     }

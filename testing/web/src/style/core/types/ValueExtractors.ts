@@ -114,6 +114,15 @@ export function extractLength(data: unknown): string | null {
     // Check for original string
     if (typeof obj.original === 'string') return obj.original;
 
+    // Check for original object with {v, u} (e.g. borderRadius: {original: {v: 50, u: "PERCENT"}})
+    if (typeof obj.original === 'object' && obj.original !== null) {
+      const orig = obj.original as Record<string, unknown>;
+      if (typeof orig.v === 'number') {
+        const unit = (orig.u as string)?.toLowerCase() || 'px';
+        return `${orig.v}${unit}`;
+      }
+    }
+
     // Check for value + unit
     if (typeof obj.v === 'number') {
       const unit = (obj.u as string)?.toLowerCase() || 'px';

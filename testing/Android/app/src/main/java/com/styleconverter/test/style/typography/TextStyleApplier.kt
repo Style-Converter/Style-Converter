@@ -13,6 +13,8 @@ import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextGeometricTransform
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.style.TextOverflow
@@ -290,8 +292,25 @@ object TextStyleApplier {
     }
 
     private fun extractTextDecoration(data: JsonElement): TextDecoration? {
+        // Handle array format: ["UNDERLINE"] or ["LINE_THROUGH"]
+        if (data is kotlinx.serialization.json.JsonArray) {
+            val decorations = data.mapNotNull { elem ->
+                val kw = elem.jsonPrimitive.contentOrNull?.lowercase()?.replace("_", "-")
+                when (kw) {
+                    "underline" -> TextDecoration.Underline
+                    "line-through" -> TextDecoration.LineThrough
+                    else -> null
+                }
+            }
+            return when {
+                decorations.isEmpty() -> null
+                decorations.size == 1 -> decorations.first()
+                else -> TextDecoration.combine(decorations)
+            }
+        }
+        // Handle keyword format: "UNDERLINE" or "LINE_THROUGH"
         val keyword = ValueExtractors.extractKeyword(data)
-        return when (keyword?.lowercase()) {
+        return when (keyword?.lowercase()?.replace("_", "-")) {
             "underline" -> TextDecoration.Underline
             "line-through" -> TextDecoration.LineThrough
             "none" -> TextDecoration.None

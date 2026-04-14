@@ -6,15 +6,28 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.styleconverter.test.screenshot.ScreenshotCaptureScreen
 import com.styleconverter.test.ui.ComponentListScreen
 
@@ -55,14 +68,39 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Go fully immersive — hide status bar and navigation bar
+        // so the full 390x844dp screen is available for content,
+        // exactly matching the web's 390x844px viewport.
+        enableEdgeToEdge()
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
         // Check/request storage permissions
         checkStoragePermission()
 
         setContent {
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+            // Outer: dark frame matching web's #111 body background
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF111111)),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                // Inner: 390x844dp phone frame matching web's #root
+                Box(
+                    modifier = Modifier
+                        .width(390.dp)
+                        .height(844.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .border(
+                            1.dp,
+                            Color(0x26FFFFFF), // rgba(255,255,255,0.15)
+                            RoundedCornerShape(12.dp)
+                        )
+                        .background(Color(0xFF1A1A2E))
                 ) {
                     MainContent(
                         hasPermission = hasStoragePermission,

@@ -124,11 +124,14 @@ object LayoutFacade {
     fun applyToModifier(modifier: Modifier, config: LayoutConfig): Modifier {
         var result = modifier
 
-        // Apply sizing (width, height, constraints)
-        result = SizingApplier.applySizing(result, config.sizing)
-
-        // Apply padding (internal spacing)
+        // Apply padding BEFORE sizing so that CSS box model is respected:
+        // In CSS, padding expands the box outward. In Compose, Modifier.padding()
+        // applied before sizing constraints means the constraints apply to the
+        // outer box (padding + content), matching CSS behavior.
         result = SpacingApplier.applyPadding(result, config.padding)
+
+        // Apply sizing (width, height, constraints) — constrains outer dimensions
+        result = SizingApplier.applySizing(result, config.sizing)
 
         // Apply margin as offset (Compose doesn't have margin)
         result = SpacingApplier.applyMargin(result, config.margin)

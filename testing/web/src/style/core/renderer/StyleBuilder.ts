@@ -732,6 +732,10 @@ function extractTransform(data: unknown): string | null {
               return `scaleY(${f.y ?? 1})`;
             case 'skew':
               return `skew(${extractDegrees(f.x) || 0}deg, ${extractDegrees(f.y) || 0}deg)`;
+            case 'skewX':
+              return `skewX(${extractDegrees(f.x) || 0}deg)`;
+            case 'skewY':
+              return `skewY(${extractDegrees(f.y) || 0}deg)`;
             case 'matrix':
               return `matrix(${(f.values as number[])?.join(', ') || '1,0,0,1,0,0'})`;
             default:
@@ -952,14 +956,32 @@ function extractGradient(data: Record<string, unknown>): string {
 function extractGradientStops(stops: unknown[] | undefined): string {
   if (!stops) return 'transparent, transparent';
 
+  // Filter out corrupted stops (e.g. "from" parsed as a color from conic-gradient)
+  const cssColorKeywords = new Set([
+    'transparent', 'currentcolor', 'inherit',
+    'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'white', 'black',
+    'cyan', 'magenta', 'gray', 'grey', 'coral', 'navy', 'teal', 'lime', 'aqua',
+    'maroon', 'olive', 'silver', 'fuchsia', 'crimson', 'salmon', 'tomato',
+    'gold', 'khaki', 'plum', 'orchid', 'violet', 'indigo', 'sienna', 'peru',
+    'tan', 'wheat', 'beige', 'linen', 'ivory', 'snow', 'azure', 'honeydew',
+  ]);
+
+  const isValidColor = (c: string) =>
+    c.startsWith('#') || c.startsWith('rgb') || c.startsWith('hsl') ||
+    cssColorKeywords.has(c.toLowerCase());
+
   return stops
     .map((stop) => {
       const s = stop as Record<string, unknown>;
-      const color = extractColor(s.color) || 'transparent';
-      const position = s.position as number | undefined;
-      return position !== undefined ? `${color} ${position}%` : color;
+      const color = extractColor(s.color);
+      if (!color || !isValidColor(color)) return null;
+      const position = s.position;
+      return (position !== null && position !== undefined && typeof position === 'number')
+        ? `${color} ${position}%`
+        : color;
     })
-    .join(', ');
+    .filter(Boolean)
+    .join(', ') || 'transparent, transparent';
 }
 
 function extractBackgroundSize(data: unknown): string | null {
@@ -1022,8 +1044,11 @@ function extractClipPath(data: unknown): string | null {
     if (obj.type === 'polygon' && Array.isArray(obj.points)) {
       const points = obj.points
         .map((p) => {
-          const pt = p as [number, number];
-          return `${pt[0]}% ${pt[1]}%`;
+          const pt = p as Record<string, unknown>;
+          // Support both {x, y} objects and [x, y] arrays
+          const x = pt.x ?? (pt as unknown as number[])[0] ?? 0;
+          const y = pt.y ?? (pt as unknown as number[])[1] ?? 0;
+          return `${x}% ${y}%`;
         })
         .join(', ');
       return `polygon(${points})`;

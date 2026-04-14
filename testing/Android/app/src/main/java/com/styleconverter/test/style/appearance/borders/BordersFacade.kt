@@ -55,9 +55,15 @@ object BordersFacade {
      * @return BordersConfig containing configurations for sides and radius.
      */
     fun extractConfig(properties: List<Pair<String, JsonElement?>>): BordersConfig {
+        // Extract component dimensions for resolving percentage-based border radius
+        val componentWidth = properties.find { it.first == "Width" }?.second
+            ?.let { com.styleconverter.test.style.core.types.ValueExtractors.extractDp(it) }
+        val componentHeight = properties.find { it.first == "Height" }?.second
+            ?.let { com.styleconverter.test.style.core.types.ValueExtractors.extractDp(it) }
+
         return BordersConfig(
             sides = BorderSideExtractor.extractBorderConfig(properties),
-            radius = BorderRadiusExtractor.extractRadiusConfig(properties),
+            radius = BorderRadiusExtractor.extractRadiusConfig(properties, componentWidth, componentHeight),
             outline = OutlineExtractor.extractOutlineConfig(properties)
         )
     }

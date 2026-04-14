@@ -104,11 +104,23 @@ object ComponentRenderer {
             null
         }
 
+        // Apply default min dimensions matching web's ComponentRenderer defaults:
+        // web: minWidth = styles.width || styles.minWidth || '50px'
+        // web: minHeight = styles.height || styles.minHeight || '30px'
+        val hasExplicitWidth = effectiveProperties.any { it.type in listOf("Width", "MinWidth", "InlineSize", "MinInlineSize") }
+        val hasExplicitHeight = effectiveProperties.any { it.type in listOf("Height", "MinHeight", "BlockSize", "MinBlockSize") }
+        val sizedModifier = baseModifier.then(
+            Modifier.defaultMinSize(
+                minWidth = if (hasExplicitWidth) Dp.Unspecified else 50.dp,
+                minHeight = if (hasExplicitHeight) Dp.Unspecified else 30.dp
+            )
+        )
+
         // Apply animations to modifier if present
         val modifier = if (animationConfig?.hasAnimations == true) {
-            animatedModifier(baseModifier, animationConfig, transitionConfig ?: com.styleconverter.test.style.interactive.animations.TransitionConfig())
+            animatedModifier(sizedModifier, animationConfig, transitionConfig ?: com.styleconverter.test.style.interactive.animations.TransitionConfig())
         } else {
-            baseModifier
+            sizedModifier
         }
 
         val displayConfig = try {
@@ -725,12 +737,8 @@ object ComponentRenderer {
         val tabConfig = TextStyleApplier.extractTabSize(properties)
         displayText = TextStyleApplier.applyTabSize(displayText, tabConfig)
 
-        // Extract list style configuration and prepend marker if applicable
-        val listStyleConfig = ListStyleExtractor.extractListStyleConfig(properties.map { it.type to it.data })
-        if (listStyleConfig.hasListStyle) {
-            val marker = StyleListApplier.getMarker(itemIndex, listStyleConfig)
-            displayText = marker + displayText
-        }
+        // Note: list-style markers are not prepended to placeholder text
+        // to match web renderer behavior (web shows plain component name)
 
         // Extract line-clamp and text-overflow
         val maxLines = TextStyleApplier.extractMaxLines(properties) ?: 2
@@ -753,7 +761,21 @@ object ComponentRenderer {
         // For list-style-position: outside, we'd need padding on the left,
         // but for simplicity we include the marker inline (like "inside")
         val effectiveFontSize = if (textStyle.fontSize != TextUnit.Unspecified) textStyle.fontSize else 11.sp
-        val effectiveColor = textColor ?: if (textStyle.color != Color.Unspecified) textStyle.color else Color(0xFF888888)
+        // Smart contrast: use dark text on light backgrounds, light text on dark backgrounds
+        // Web uses color:inherit (#eee) with opacity:0.7 → rgba(238,238,238,0.7) for dark bg
+        val defaultPlaceholderColor = run {
+            val bgColor = properties.find { it.type == "BackgroundColor" }?.data?.let {
+                com.styleconverter.test.style.core.types.ValueExtractors.extractColor(it)
+            }
+            if (bgColor != null) {
+                // Calculate perceived brightness (0-1): luminance formula
+                val brightness = 0.299f * bgColor.red + 0.587f * bgColor.green + 0.114f * bgColor.blue
+                if (brightness > 0.6f) Color(0xB3333333) else Color(0xB3EEEEEE) // dark text on light bg, light text on dark bg
+            } else {
+                Color(0xB3EEEEEE) // default light text for dark card background
+            }
+        }
+        val effectiveColor = textColor ?: if (textStyle.color != Color.Unspecified) textStyle.color else defaultPlaceholderColor
         val effectiveTextAlign = if (textStyle.textAlign != TextAlign.Unspecified) textStyle.textAlign else TextAlign.Center
 
         val finalTextStyle = TextStyle(
@@ -987,6 +1009,6 @@ object ComponentRenderer {
         AlignItems.FLEX_END -> Alignment.BottomEnd
         AlignItems.CENTER -> Alignment.Center
         AlignItems.BASELINE -> Alignment.TopStart
-        AlignItems.STRETCH -> Alignment.Center
+        AlignItems.STRETCH -> Alignment.TopCenter
     }
 }
