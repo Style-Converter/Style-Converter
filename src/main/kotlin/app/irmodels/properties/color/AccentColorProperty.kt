@@ -1,6 +1,7 @@
 package app.irmodels.properties.color
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -25,9 +26,11 @@ data class AccentColorProperty(
     @Serializable
     sealed interface AccentColor {
         @Serializable
+        @SerialName("auto")
         data class Auto(val unit: Unit = Unit) : AccentColor
 
         @Serializable
-        data class ColorValue(val color: IRColor) : AccentColor
+        @SerialName("color")
+        data class Color(val value: IRColor) : AccentColor
     }
 }

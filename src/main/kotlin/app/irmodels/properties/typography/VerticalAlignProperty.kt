@@ -1,6 +1,7 @@
 package app.irmodels.properties.typography
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -12,12 +13,15 @@ data class VerticalAlignProperty(
     @Serializable
     sealed interface VerticalAlignment {
         @Serializable
+        @SerialName("keyword")
         data class Keyword(val value: AlignKeyword) : VerticalAlignment
 
         @Serializable
+        @SerialName("length")
         data class LengthValue(val length: IRLength) : VerticalAlignment
 
         @Serializable
+        @SerialName("percentage")
         data class PercentageValue(val percentage: IRPercentage) : VerticalAlignment
 
         enum class AlignKeyword {

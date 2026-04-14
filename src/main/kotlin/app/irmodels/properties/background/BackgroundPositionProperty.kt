@@ -1,33 +1,74 @@
 package app.irmodels.properties.background
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * Represents the CSS `background-position` property.
+ *
+ * ## CSS Property
+ * **Syntax**: `background-position: <position> [, <position>]*`
+ *
+ * ## Description
+ * Sets the initial position for background images.
+ *
+ * @property positions List of position values (for multiple backgrounds)
+ * @see [MDN background-position](https://developer.mozilla.org/en-US/docs/Web/CSS/background-position)
+ */
 @Serializable
 data class BackgroundPositionProperty(
-    val positions: List<BackgroundPosition>
+    val positions: List<PositionValue>
 ) : IRProperty {
     override val propertyName = "background-position"
 
     @Serializable
-    data class BackgroundPosition(
-        val x: PositionValue,
-        val y: PositionValue
-    )
-
-    @Serializable
     sealed interface PositionValue {
         @Serializable
-        data class Keyword(val value: PositionKeyword) : PositionValue
+        @SerialName("center")
+        data object Center : PositionValue
 
         @Serializable
-        data class LengthValue(val length: IRLength) : PositionValue
+        @SerialName("two-value")
+        data class TwoValue(val x: EdgeValue, val y: EdgeValue) : PositionValue
 
         @Serializable
-        data class PercentageValue(val percentage: IRPercentage) : PositionValue
+        @SerialName("keyword")
+        data class Keyword(val keyword: String) : PositionValue
 
-        enum class PositionKeyword {
-            LEFT, CENTER, RIGHT, TOP, BOTTOM
-        }
+        @Serializable
+        @SerialName("raw")
+        data class Raw(val value: String) : PositionValue
+    }
+
+    @Serializable
+    sealed interface EdgeValue {
+        @Serializable
+        @SerialName("top")
+        data object Top : EdgeValue
+
+        @Serializable
+        @SerialName("bottom")
+        data object Bottom : EdgeValue
+
+        @Serializable
+        @SerialName("left")
+        data object Left : EdgeValue
+
+        @Serializable
+        @SerialName("right")
+        data object Right : EdgeValue
+
+        @Serializable
+        @SerialName("center")
+        data object Center : EdgeValue
+
+        @Serializable
+        @SerialName("length")
+        data class Length(val length: IRLength) : EdgeValue
+
+        @Serializable
+        @SerialName("percentage")
+        data class Percentage(val percentage: IRPercentage) : EdgeValue
     }
 }

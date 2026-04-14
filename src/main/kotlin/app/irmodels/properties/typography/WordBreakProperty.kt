@@ -4,12 +4,19 @@ import app.irmodels.IRProperty
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class WordBreakProperty(
-    val wordBreak: WordBreak
-) : IRProperty {
-    override val propertyName = "word-break"
+sealed interface WordBreakProperty : IRProperty {
+    override val propertyName: String get() = "word-break"
 
-    enum class WordBreak {
-        NORMAL, BREAK_ALL, KEEP_ALL, BREAK_WORD
+    @Serializable
+    data class WordBreak(val value: WordBreakValue) : WordBreakProperty
+
+    @Serializable
+    data class Keyword(val value: String) : WordBreakProperty
+
+    @Serializable
+    data class Raw(val raw: String) : WordBreakProperty
+
+    enum class WordBreakValue {
+        NORMAL, BREAK_ALL, KEEP_ALL, BREAK_WORD, AUTO_PHRASE
     }
 }

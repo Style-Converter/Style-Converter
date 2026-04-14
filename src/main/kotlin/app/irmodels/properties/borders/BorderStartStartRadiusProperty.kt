@@ -1,6 +1,6 @@
 package app.irmodels.properties.borders
 
-import app.irmodels.IRProperty
+import app.irmodels.*
 import app.irmodels.IRLength
 import app.irmodels.IRPercentage
 import kotlinx.serialization.Serializable

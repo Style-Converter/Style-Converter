@@ -1,6 +1,6 @@
 package app.parsing
 
-import app.*
+import app.irmodels.IRDocument
 import app.parsing.css.cssParsing
 import app.parsing.compose.composeParsing
 import app.parsing.swiftUI.swiftUIParsing

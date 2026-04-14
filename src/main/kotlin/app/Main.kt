@@ -80,8 +80,11 @@ fun main(rawArgs: Array<String>) {
         val allowedFrom = setOf("css", "compose", "swiftui")
         if (fromRaw !in allowedFrom) { printUsage(); return }
         val ir = parsing(root, fromRaw)
+
+        // Serialize the new IRDocument with specific property classes
         val pretty = Json { prettyPrint = true }.encodeToString(ir)
-        // Ensure output directory exists and write IR to tmpOutput.json instead of printing
+
+        // Ensure output directory exists and write IR to tmpOutput.json
         File(outDir).mkdirs()
         File(outDir, "tmpOutput.json").writeText(pretty)
         

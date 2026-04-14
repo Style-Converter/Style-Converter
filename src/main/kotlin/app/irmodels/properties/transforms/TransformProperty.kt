@@ -1,85 +1,43 @@
 package app.irmodels.properties.transforms
 
-import app.irmodels.*
+import app.irmodels.IRProperty
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * CSS `transform` property - applies 2D/3D transformations.
+ *
+ * Supports:
+ * - `Functions`: List of transform functions (translate, rotate, scale, skew, matrix, etc.)
+ * - `Expression`: CSS expressions like calc() or var()
+ * - `Keyword`: "none" or global keywords
+ *
+ * All angles in TransformFunction are normalized to degrees.
+ * All lengths are normalized to pixels when possible.
+ *
+ * @see TransformFunction for individual transform function types
+ */
 @Serializable
 data class TransformProperty(
-    val functions: List<TransformFunction>
+    val value: TransformValue
 ) : IRProperty {
     override val propertyName = "transform"
-}
 
-@Serializable
-sealed interface TransformFunction {
-    @Serializable
-    data class Translate(val x: IRLength, val y: IRLength) : TransformFunction
+    constructor(functions: List<TransformFunction>) : this(TransformValue.Functions(functions))
 
     @Serializable
-    data class TranslateX(val x: IRLength) : TransformFunction
+    sealed interface TransformValue {
+        @Serializable @SerialName("functions")
+        data class Functions(val list: List<TransformFunction>) : TransformValue
+        @Serializable @SerialName("expression")
+        data class Expression(val expr: String) : TransformValue
+        @Serializable @SerialName("keyword")
+        data class Keyword(val keyword: String) : TransformValue
+    }
 
-    @Serializable
-    data class TranslateY(val y: IRLength) : TransformFunction
-
-    @Serializable
-    data class TranslateZ(val z: IRLength) : TransformFunction
-
-    @Serializable
-    data class Translate3d(val x: IRLength, val y: IRLength, val z: IRLength) : TransformFunction
-
-    @Serializable
-    data class Scale(val x: IRNumber, val y: IRNumber) : TransformFunction
-
-    @Serializable
-    data class ScaleX(val x: IRNumber) : TransformFunction
-
-    @Serializable
-    data class ScaleY(val y: IRNumber) : TransformFunction
-
-    @Serializable
-    data class ScaleZ(val z: IRNumber) : TransformFunction
-
-    @Serializable
-    data class Scale3d(val x: IRNumber, val y: IRNumber, val z: IRNumber) : TransformFunction
-
-    @Serializable
-    data class Rotate(val angle: IRAngle) : TransformFunction
-
-    @Serializable
-    data class RotateX(val angle: IRAngle) : TransformFunction
-
-    @Serializable
-    data class RotateY(val angle: IRAngle) : TransformFunction
-
-    @Serializable
-    data class RotateZ(val angle: IRAngle) : TransformFunction
-
-    @Serializable
-    data class Rotate3d(val x: IRNumber, val y: IRNumber, val z: IRNumber, val angle: IRAngle) : TransformFunction
-
-    @Serializable
-    data class Skew(val x: IRAngle, val y: IRAngle) : TransformFunction
-
-    @Serializable
-    data class SkewX(val angle: IRAngle) : TransformFunction
-
-    @Serializable
-    data class SkewY(val angle: IRAngle) : TransformFunction
-
-    @Serializable
-    data class Perspective(val length: IRLength) : TransformFunction
-
-    @Serializable
-    data class Matrix(
-        val a: IRNumber, val b: IRNumber, val c: IRNumber,
-        val d: IRNumber, val e: IRNumber, val f: IRNumber
-    ) : TransformFunction
-
-    @Serializable
-    data class Matrix3d(
-        val a1: IRNumber, val b1: IRNumber, val c1: IRNumber, val d1: IRNumber,
-        val a2: IRNumber, val b2: IRNumber, val c2: IRNumber, val d2: IRNumber,
-        val a3: IRNumber, val b3: IRNumber, val c3: IRNumber, val d3: IRNumber,
-        val a4: IRNumber, val b4: IRNumber, val c4: IRNumber, val d4: IRNumber
-    ) : TransformFunction
+    val functions: List<TransformFunction>
+        get() = when (value) {
+            is TransformValue.Functions -> value.list
+            else -> emptyList()
+        }
 }

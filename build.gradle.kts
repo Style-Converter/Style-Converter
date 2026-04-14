@@ -17,4 +17,8 @@ application {
     mainClass.set("app.MainKt")
 }
 
+kotlin {
+    jvmToolchain(23)
+}
+
 

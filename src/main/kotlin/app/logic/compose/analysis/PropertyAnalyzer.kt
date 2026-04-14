@@ -1,8 +1,10 @@
 package app.logic.compose.analysis
 
-import app.IRProperty
-import app.IRKeyword
-import app.IRSelector
+import app.irmodels.IRProperty
+import app.irmodels.IRKeyword
+import app.irmodels.IRSelector
+import app.irmodels.IRMedia
+import app.logic.compose.converters.*
 
 /**
  * Types of layout wrappers that may be needed
@@ -229,7 +231,7 @@ class PropertyAnalyzer {
     fun analyze(
         properties: List<IRProperty>,
         selectors: List<IRSelector> = emptyList(),
-        mediaQueries: List<app.IRMedia> = emptyList()
+        mediaQueries: List<IRMedia> = emptyList()
     ): ComponentRequirements {
         val propMap = properties.associateBy { it.propertyName }
         val mediaQueryStates = parseMediaQueries(mediaQueries)
@@ -567,7 +569,7 @@ class PropertyAnalyzer {
     // Media Query Parsing
     // ============================================
 
-    private fun parseMediaQueries(mediaQueries: List<app.IRMedia>): List<MediaQueryState> {
+    private fun parseMediaQueries(mediaQueries: List<IRMedia>): List<MediaQueryState> {
         return mediaQueries.map { media ->
             val query = media.query
             // Parse min-width and max-width from query

@@ -1,23 +1,16 @@
 package app.irmodels.properties.columns
 
-import app.irmodels.*
+import app.irmodels.IRProperty
+import app.irmodels.properties.spacing.GapProperty
 import kotlinx.serialization.Serializable
 
+/**
+ * Represents the CSS `column-gap` property.
+ * Uses shared LengthPercentageOrNormal type from GapProperty.
+ */
 @Serializable
 data class ColumnGapProperty(
-    val gap: ColumnGap
+    val gap: GapProperty.LengthPercentageOrNormal
 ) : IRProperty {
     override val propertyName = "column-gap"
-
-    @Serializable
-    sealed interface ColumnGap {
-        @Serializable
-        data class Normal(val unit: kotlin.Unit = kotlin.Unit) : ColumnGap
-
-        @Serializable
-        data class LengthValue(val length: IRLength) : ColumnGap
-
-        @Serializable
-        data class PercentageValue(val percentage: IRPercentage) : ColumnGap
-    }
 }

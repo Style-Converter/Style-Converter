@@ -1,6 +1,7 @@
 package app.irmodels.properties.borders
 
 import app.irmodels.IRProperty
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -34,11 +35,14 @@ data class BorderImageSourceProperty(
 @Serializable
 sealed interface BorderImageSource {
     @Serializable
+    @SerialName("none")
     data object None : BorderImageSource
 
     @Serializable
+    @SerialName("url")
     data class Url(val url: String) : BorderImageSource
 
     @Serializable
+    @SerialName("gradient")
     data class Gradient(val gradient: String) : BorderImageSource
 }

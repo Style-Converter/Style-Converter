@@ -1,7 +1,8 @@
 package app.logic.compose.generation
 
 import app.logic.compose.analysis.*
-import app.IRProperty
+import app.irmodels.IRProperty
+import app.logic.compose.converters.*
 
 /**
  * Represents different types of layout wrappers
@@ -414,8 +415,8 @@ class ComponentStructureBuilder {
     ): List<StateSetup> {
         val setups = mutableListOf<StateSetup>()
 
-        if (requirements.needsStateManagement) {
-            val stateReq = requirements.stateRequirements!!
+        if (requirements.needsStateManagement && requirements.stateRequirements != null) {
+            val stateReq = requirements.stateRequirements
 
             if (stateReq.needsHoverState) {
                 imports.add("androidx.compose.runtime.remember")
@@ -642,7 +643,8 @@ class ComponentStructureBuilder {
                     imports.add("androidx.compose.ui.graphics.Brush")
                     imports.add("androidx.compose.ui.graphics.Color")
                     imports.add("androidx.compose.ui.geometry.Offset")
-                    parseGradient(prop.raw)
+                    val rawValue = prop.raw
+                    if (rawValue != null) parseGradient(rawValue) else null
                 } else {
                     // Regular background color
                     imports.add("androidx.compose.foundation.background")
@@ -655,19 +657,19 @@ class ComponentStructureBuilder {
             }
             "transform" -> {
                 // Handle transform: scale(0.98)
-                if (prop.raw?.contains("scale") == true) {
+                val rawValue = prop.raw
+                if (rawValue?.contains("scale") == true) {
                     imports.add("androidx.compose.ui.draw.scale")
-                    val scaleMatch = Regex("scale\\(([0-9.]+)\\)").find(prop.raw)
+                    val scaleMatch = Regex("scale\\(([0-9.]+)\\)").find(rawValue)
                     scaleMatch?.groupValues?.get(1)?.let { "scale(${it}f)" }
                 } else null
             }
             "box-shadow" -> {
-                imports.add("androidx.compose.ui.draw.shadow")
-                imports.add("androidx.compose.ui.unit.dp")
-                prop.shadows?.firstOrNull()?.let { shadow ->
-                    val blur = shadow.blur?.value ?: 0.0
-                    "shadow(${blur}.dp)"
-                }
+                // TODO: Shadow support not yet implemented
+                // imports.add("androidx.compose.ui.draw.shadow")
+                // imports.add("androidx.compose.ui.unit.dp")
+                // shadows property returns Any for now, so skip shadow generation
+                null
             }
             "border-color", "border-top-color", "border-right-color",
             "border-bottom-color", "border-left-color" -> {

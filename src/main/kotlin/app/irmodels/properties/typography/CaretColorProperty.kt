@@ -1,6 +1,7 @@
 package app.irmodels.properties.typography
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -24,9 +25,11 @@ data class CaretColorProperty(
     @Serializable
     sealed interface CaretColor {
         @Serializable
+        @SerialName("auto")
         data class Auto(val unit: Unit = Unit) : CaretColor
 
         @Serializable
+        @SerialName("color")
         data class ColorValue(val color: IRColor) : CaretColor
     }
 }

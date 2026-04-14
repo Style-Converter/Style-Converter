@@ -1,44 +1,37 @@
 package app.irmodels.properties.borders
 
-import app.irmodels.*
+import app.irmodels.IRProperty
+import app.irmodels.IRLength
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * Represents the CSS `border-width` property.
+ */
 @Serializable
 data class BorderWidthProperty(
-    val values: BorderWidthValues
+    val width: BorderWidth
 ) : IRProperty {
     override val propertyName = "border-width"
 
+    /**
+     * Border width values.
+     */
     @Serializable
-    sealed interface BorderWidthValues {
+    sealed interface BorderWidth {
         @Serializable
-        data class All(val value: LineWidth) : BorderWidthValues
+        @SerialName("length")
+        data class Length(val value: IRLength) : BorderWidth
 
         @Serializable
-        data class VerticalHorizontal(
-            val vertical: LineWidth,
-            val horizontal: LineWidth
-        ) : BorderWidthValues
-
-        @Serializable
-        data class FourSides(
-            val top: LineWidth,
-            val right: LineWidth,
-            val bottom: LineWidth,
-            val left: LineWidth
-        ) : BorderWidthValues
+        @SerialName("keyword")
+        data class Keyword(val value: BorderWidthKeyword) : BorderWidth
     }
 
     @Serializable
-    sealed interface LineWidth {
-        @Serializable
-        data class Keyword(val value: WidthKeyword) : LineWidth
-
-        @Serializable
-        data class LengthValue(val length: IRLength) : LineWidth
-
-        enum class WidthKeyword {
-            THIN, MEDIUM, THICK
-        }
+    enum class BorderWidthKeyword {
+        THIN,
+        MEDIUM,
+        THICK
     }
 }

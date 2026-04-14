@@ -1,6 +1,7 @@
 package app.irmodels.properties.transforms
 
 import app.irmodels.*
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -25,12 +26,15 @@ data class RotateProperty(
     @Serializable
     sealed interface Rotation {
         @Serializable
+        @SerialName("none")
         data class None(val unit: Unit = Unit) : Rotation
 
         @Serializable
+        @SerialName("angle")
         data class Angle(val angle: IRAngle) : Rotation
 
         @Serializable
+        @SerialName("axis-angle")
         data class AxisAngle(
             val x: Double,
             val y: Double,

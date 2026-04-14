@@ -3,6 +3,7 @@ package app.irmodels.properties.borders
 import app.irmodels.IRProperty
 import app.irmodels.IRLength
 import app.irmodels.IRNumber
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -51,8 +52,10 @@ data class BorderImageOutsetProperty(
 @Serializable
 sealed interface BorderImageOutsetValue {
     @Serializable
+    @SerialName("length")
     data class Length(val value: IRLength) : BorderImageOutsetValue
 
     @Serializable
+    @SerialName("number")
     data class Number(val value: IRNumber) : BorderImageOutsetValue
 }

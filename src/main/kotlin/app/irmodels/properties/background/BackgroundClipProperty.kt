@@ -5,7 +5,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class BackgroundClipProperty(
-    val clips: List<Clip>
+    val clips: List<Clip>? = null,
+    val global: String? = null
 ) : IRProperty {
     override val propertyName = "background-clip"
 

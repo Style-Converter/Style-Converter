@@ -1,6 +1,6 @@
 package app.irmodels.properties.effects
 
-import app.irmodels.IRProperty
+import app.irmodels.*
 import kotlinx.serialization.Serializable
 
 /**

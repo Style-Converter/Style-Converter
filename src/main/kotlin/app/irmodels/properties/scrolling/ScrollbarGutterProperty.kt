@@ -1,6 +1,7 @@
 package app.irmodels.properties.scrolling
 
 import app.irmodels.IRProperty
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
@@ -39,6 +40,7 @@ sealed interface ScrollbarGutter {
      * Default behavior - scrollbar appears when content overflows.
      */
     @Serializable
+    @SerialName("auto")
     data object Auto : ScrollbarGutter
 
     /**
@@ -46,5 +48,6 @@ sealed interface ScrollbarGutter {
      * @property bothEdges If true, reserves space on both sides of the scrollport
      */
     @Serializable
+    @SerialName("stable")
     data class Stable(val bothEdges: Boolean = false) : ScrollbarGutter
 }

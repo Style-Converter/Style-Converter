@@ -29,13 +29,15 @@ data class CssMedia(
 )
 
 /**
- * Represents a CSS component in JSON format
+ * Represents a CSS component in JSON format.
+ * Supports nested children for SDUI container components.
  */
 @Serializable
 data class CssComponent(
     val properties: Map<String, CssPropertyValue>? = null,
     val selectors: List<CssSelector>? = null,
-    val media: List<CssMedia>? = null
+    val media: List<CssMedia>? = null,
+    val children: Map<String, CssComponent>? = null
 )
 
 /**
