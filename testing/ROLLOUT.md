@@ -44,20 +44,20 @@ Phases are **sequential in their dependencies**: Phase 1 requires Phase 0,
 Phases 2–10 require Phase 1. Within Phase 0 and within each category
 phase, work is parallel.
 
-| # | Phase | Files | Parallelism | SSIM gate |
+| # | Phase | Files | Parallelism | Status |
 |---|---|---|---|---|
-| 0 | Architectural scaffold | all three trees + registries + ROLLOUT.md | 3 agents (one per platform) | ≥ baseline on existing 109 components |
-| 1 | Primitive extractors (length, color, angle, time, number, keyword) | ~6 shared files × 3 platforms | 1 agent per platform × 3 | primitives-test fixture ≥ 0.95 cross-platform |
-| 2 | spacing (26) | padding, margin, gap, scroll-padding/margin | 1 agent × 3 platforms | ≥ 0.95 on every variant |
-| 3 | sizing (7) | width, height, min/max, aspect-ratio, block/inline-size | 1 agent × 3 | ≥ 0.95 |
-| 4 | colors + background (37) | bg color, gradients, image, position, size, repeat | 2 agents (colors, images) × 3 | ≥ 0.95 |
-| 5 | borders (47) | widths, colors, styles, radius, image | 3 agents (sides, radius, image) × 3 | ≥ 0.95 |
-| 6 | typography (110) | fonts, text align, decoration, variants, emphasis, writing-mode | 4 agents × 3 | ≥ 0.95 |
-| 7 | layout (51) | flexbox, grid, position, advanced | 3 agents × 3 | ≥ 0.95 |
-| 8 | effects + transforms (40) | shadow, filter, clip-path, mask, transform, 3D, motion | 3 agents × 3 | ≥ 0.95 |
-| 9 | animations + transitions (26) | all timing + state properties | 1 agent × 3 | end-frame ≥ 0.95 |
-| 10 | long tail (~120) | scrolling, svg, tables, lists, columns, counters, container | parallel batches | ≥ 0.95 where testable |
-| 11 | baseline + docs + coverage matrix | final sweep | serial | all above hold |
+| 0 | Architectural scaffold | all three trees + registries + ROLLOUT.md | 3 agents (one per platform) | ✓ done (commit a037481) |
+| 1 | Primitive extractors (length, color, angle, time, number, keyword) | ~6 shared files × 3 platforms | 1 agent per platform × 3 | ✓ done (b8e4a3f) |
+| 2 | spacing (26) | padding, margin, gap, scroll-padding/margin | 1 agent × 3 platforms | ✓ done (c3f6a91 / ee1a5d1) |
+| 3 | sizing (7) | width, height, min/max, aspect-ratio, block/inline-size | 1 agent × 3 | ✓ done (ea874c7) |
+| 4 | colors + background (37) | bg color, gradients, image, position, size, repeat | 2 agents (colors, images) × 3 | ✓ done (1e38189) |
+| 5 | borders (47) | widths, colors, styles, radius, image | 3 agents (sides, radius, image) × 3 | ✓ done (07f3335) |
+| 6 | typography (110) | fonts, text align, decoration, variants, emphasis, writing-mode | 4 agents × 3 | ✓ done (02322e4) |
+| 7 | layout (61) | flexbox, grid, position, advanced | scaffold + impl (7 agents × 3) | ✓ done (0d9f8c6 / 885c775) + hotfix ff901e3 |
+| 8 | effects + transforms (38) | shadow, filter, clip-path, mask, transform, 3D, motion | 3 agents × 3 | ✓ done (33c435e) |
+| 9 | animations + transitions + timelines (29) | all timing + state + view/scroll-timeline | 1 agent × 3 | ✓ done (bf9251b) |
+| 10 | long tail (~150) | scrolling, svg, tables, lists, columns, counters, container, speech, regions, navigation, math, paging, print, performance, shapes, rhythm, images, appearance, content, global, experimental | 3 agents × 3 (multi-category sweep) | ✓ done (f15e51c) |
+| 11 | baseline harness + docs + coverage matrix | final sweep: testing/coverage-audit.mjs + testing/COVERAGE.md + README/CLAUDE.md refresh | serial | ✓ done (this PR) |
 
 ## Fan-out protocol per phase
 
@@ -91,6 +91,30 @@ If context runs out mid-phase, pick up here:
   `examples/primitives-test.json`.
 - **Phase N category**: read `testing/baseline/` and the comparison
   report — categories that show ≥ 0.95 SSIM across pairs are done.
+
+## Coverage status (final, Phase 11)
+
+Run `node testing/coverage-audit.mjs` at any time to get a live per-category
+matrix. Current totals against the 550-property IR catalogue
+(33 categories):
+
+| platform | claimed | coverage |
+|---|---:|---:|
+| Android | 545 / 550 | 99.1% |
+| iOS | 545 / 550 | 99.1% |
+| Web | 533 / 550 | 96.9% |
+
+Three properties are not claimed on any platform and need parser + engine
+follow-up — see `testing/COVERAGE.md`:
+
+- `background/BackgroundPositionBlock` / `BackgroundPositionInline`
+  (CSS L4 logical aliases — parser emits them under the physical
+  BackgroundPosition family)
+- `color/DynamicRangeLimit` (CSS Color L4 HDR — no runtime mobile path;
+  low priority)
+
+Add `node testing/coverage-audit.mjs` to CI as a non-blocking check; drop
+the unclaimed list to zero before removing that gate.
 
 ## Non-goals (don't do this)
 

@@ -233,24 +233,62 @@ A property is "done" when **all five** are true:
 
 ## Implementation phases
 
-The rollout plan (and the order work is parallelized across agents) lives
-in `testing/ROLLOUT.md`. At a glance:
+The rollout plan is **complete** (Phases 0–11, 12 commits). Full
+execution history + per-phase status lives in `testing/ROLLOUT.md`;
+per-category coverage matrix is at `testing/COVERAGE.md` and regenerated
+by `node testing/coverage-audit.mjs`.
+
+Current coverage vs the 550-property IR catalogue (33 categories):
+
+| platform | claimed | coverage |
+|---|---:|---:|
+| Android | 545 / 550 | 99.1% |
+| iOS | 545 / 550 | 99.1% |
+| Web | 533 / 550 | 96.9% |
+
+Baseline: 327 cross-platform comparisons on the visual-test fixture,
+0 regressions.
+
+Phase summary (see ROLLOUT.md for commit hashes):
 
 - **Phase 0** Canonical folder scaffold on all three platforms; Android
   refactored to mirror irmodels.
-- **Phase 1** Bulletproof primitive extractors (lengths, colors, angles,
-  times, numbers, keywords) — unblocks everything downstream.
-- **Phases 2–10** Category-by-category rollout, parallelizable per category.
-  Order by payoff: spacing → sizing → colors+bg → borders → typography →
-  layout → effects+transforms → animations → long tail.
-- **Phase 11** Baseline harness for the full IR, documentation, coverage
-  matrix.
+- **Phase 1** Primitive extractors (lengths, colors, angles, times,
+  numbers, keywords).
+- **Phase 2** spacing (26 props).
+- **Phase 3** sizing (7).
+- **Phase 4** colors + background (37).
+- **Phase 5** borders (47).
+- **Phase 6** typography (110).
+- **Phase 7 / 7b** layout (61) — scaffold then flexbox/grid/position
+  implementation.
+- **Phase 8** effects + transforms (38).
+- **Phase 9** animations + transitions + timelines (29) — config
+  extraction only; runtime animation execution is follow-up work per
+  platform.
+- **Phase 10** long tail (~150 across 22 categories).
+- **Phase 11** baseline harness + `testing/COVERAGE.md` + audit script.
 
 ---
 
-## Android SDUI Implementation Status
+## Implementation status
 
-### Fully Working (Visual Rendering)
+See `testing/COVERAGE.md` for the live per-category / per-platform
+coverage matrix (regenerate with `node testing/coverage-audit.mjs`).
+
+The legacy "Android SDUI Implementation Status" section that used to live
+here listed ~60 working properties and a handful of TODOs, pinned to the
+pre-rollout architecture. That status is now stale: all three platforms
+claim the full 550-property IR surface (minus three L4 gaps — see
+COVERAGE.md), the legacy `sdui/` folder has been folded into the
+canonical `style/` tree, and the per-property contract documented above
+is enforced across all categories.
+
+For audit purposes the truncated legacy status block follows, untouched
+from pre-Phase-0 for historical reference:
+
+<details>
+<summary>Pre-Phase-0 Android status (historical)</summary>
 
 **Layout & Sizing** (12 properties)
 - `Width`, `Height`, `MinWidth`, `MaxWidth`, `MinHeight`, `MaxHeight`
@@ -377,28 +415,56 @@ Resize                           # No drag handles
 PageBreak*                       # No printing
 ```
 
+</details>
+
 ---
 
-## Key Files Reference
+## Key files reference (current)
 
-| File | Purpose |
-|------|---------|
-| `PropertyApplier.kt` | Main IR → Modifier converter (1100 lines) |
-| `ComponentRenderer.kt` | Layout detection & rendering (640 lines) |
-| `ValueExtractors.kt` | Extract Dp, Color, Float from IR JSON |
-| `BackgroundApplier.kt` | Gradient rendering |
-| `BorderApplier.kt` | Per-side border drawing |
-| `FilterApplier.kt` | CSS filter → ColorMatrix |
-| `TextStyleApplier.kt` | Typography properties |
-| `GridApplier.kt` | CSS Grid → LazyVerticalGrid |
+Android (canonical tree):
+- `testing/Android/app/src/main/java/com/styleconverter/test/style/PropertyRegistry.kt` — coverage registry
+- `testing/Android/app/src/main/java/com/styleconverter/test/style/<category>/` — per-category Config / Extractor / Applier triplets
+- `testing/Android/app/src/main/java/com/styleconverter/test/style/core/renderer/ComponentRenderer.kt` — engine + legacy dispatch
 
-## Adding New Properties
+iOS (canonical tree):
+- `testing/iOS/StyleConverterTest/StyleEngine/PropertyRegistry.swift` — registry
+- `testing/iOS/StyleConverterTest/StyleEngine/<category>/` — per-category triplets
+- `testing/iOS/StyleConverterTest/Renderer/StyleBuilder.swift` + `Renderer/ComponentRenderer.swift`
 
-1. **IR Model**: Add to `irmodels/properties/` (if new property)
-2. **Parser**: Add to `parsing/css/properties/longhands/`
-3. **Registry**: Register in `PropertyParserRegistry.kt`
-4. **Android**: Add case in `PropertyApplier.applyPropertyInternal()`
-5. **Test**: Add example to `visual-test.json`
+Web (canonical tree):
+- `testing/web/src/style/engine/PropertyRegistry.ts` — registry
+- `testing/web/src/style/engine/<category>/` — per-category triplets + per-category `_dispatch.ts`
+- `testing/web/src/style/core/renderer/StyleBuilder.ts` — top-level dispatcher
+
+Shared tooling:
+- `testing/compare-screenshots.mjs` — 3-way SSIM + pixelmatch + HTML report
+- `testing/coverage-audit.mjs` — IR vs PropertyRegistry coverage matrix
+- `testing/baseline/` — committed per-platform PNGs for `BASELINE=1 ./test-all.sh`
+- `examples/properties/<category>/` — per-category fixture suites
+
+## Adding a new property
+
+When adding a new CSS property to the system:
+
+1. **IR model**: add `irmodels/properties/<category>/<Name>Property.kt`
+   (serialized naming: `<Name>Property` — the `Property` suffix is part
+   of the filename convention `coverage-audit.mjs` relies on).
+2. **Parser**: add `parsing/css/properties/longhands/<category>/<Name>PropertyParser.kt`.
+3. **Parser registry**: wire into `PropertyParserRegistry.kt`.
+4. **Fixture**: add a component under `examples/properties/<category>/<property>.json`
+   exercising every value variant the parser recognises.
+5. **Platform engines** — for each of Android / iOS / Web:
+   a. Author `Config` + `Extractor` + `Applier` under `style(/Engine)/<category>/`
+      matching the "Per-property contract" section above.
+   b. Claim the IR type name in `PropertyRegistry` (either directly or via
+      a grouped `Set` union).
+   c. Add a unit test under the matching `test`/`tests` tree.
+6. **Run `./test-all.sh examples/properties/<category>/<property>.json`**;
+   iterate until all platform pairs hit SSIM ≥ 0.95 on every variant.
+7. **Update baseline** with `UPDATE_BASELINE=1 ./test-all.sh …` and commit
+   the captures alongside the engine code.
+8. **Verify coverage** with `node testing/coverage-audit.mjs` — the new
+   property must show up under the right category on every platform.
 
 ## Tech Stack
 
