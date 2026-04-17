@@ -138,6 +138,14 @@ enum PropertyRegistry {
     // extractors/appliers land in Phase 7 steps 2-5. See
     // testing/iOS/.../StyleEngine/layout/LayoutExtractor.swift.
     .union(LayoutProperty.set)
+    // Phase 8 — transforms, clip, visibility/overflow, filter, mask.
+    // Each enum centralises its owned property-type names so the
+    // extractors and self-tests stay in lockstep with this registry.
+    .union(TransformsProperty.set)
+    .union(ClipProperty.set)
+    .union(VisibilityProperty.set)
+    .union(FilterProperty.set)
+    .union(MaskProperty.set)
 
     // MARK: - Query helpers
 

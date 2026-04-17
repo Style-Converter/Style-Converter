@@ -2,6 +2,7 @@ package com.styleconverter.test.style.transforms
 
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -59,6 +60,23 @@ import kotlinx.serialization.json.jsonPrimitive
  * ```
  */
 object TransformExtractor {
+
+    init {
+        // Phase 8 registration. Claim the 2D transform longhands + origin so the
+        // legacy dispatch switch (and any future one) defers to this extractor.
+        // TransformBox is listed here because it's a transform-family keyword
+        // that conceptually belongs with Transform/TransformOrigin, even though
+        // the runtime applier currently no-ops it (see TODO in TransformApplier).
+        PropertyRegistry.migrated(
+            "Transform",
+            "TransformOrigin",
+            "TransformBox",
+            "Rotate",
+            "Scale",
+            "Translate",
+            owner = "transforms"
+        )
+    }
 
     /**
      * Extract a complete TransformConfig from a list of property type/data pairs.

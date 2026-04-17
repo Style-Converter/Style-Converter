@@ -128,6 +128,15 @@ struct ComponentStyle {
     var backgroundAttachment: BackgroundAttachmentConfig? = nil
     var blend: BlendModeConfig?                       = nil
     var isolation: IsolationConfig?                   = nil
+
+    // Phase 8 — transforms + effects clip/filter/mask + visibility/overflow.
+    // Each is nil when the IR carried no matching property, so the
+    // corresponding applier short-circuits to identity.
+    var transforms: TransformsAggregate? = nil
+    var clipPath:   ClipConfig?          = nil
+    var visibility: VisibilityConfig?    = nil
+    var filter:     FilterConfig?        = nil
+    var mask:       MaskConfig?          = nil
 }
 
 // MARK: - Builder
@@ -203,6 +212,15 @@ enum StyleBuilder {
         // property touched the aggregate, preserving legacy fallback
         // behaviour for grid/position/etc. until those sub-steps land.
         s.layout7 = LayoutExtractor.extract(from: properties)
+
+        // Phase 8 — transforms (10 props), clip+visibility (10 props),
+        // filter (2), mask (15). Each owns its property-type names in
+        // PropertyRegistry.migrated so the legacy switch below skips them.
+        s.transforms = TransformsExtractor.extract(from: properties)
+        s.clipPath   = ClipExtractor.extract(from: properties)
+        s.visibility = VisibilityExtractor.extract(from: properties)
+        s.filter     = FilterExtractor.extract(from: properties)
+        s.mask       = MaskExtractor.extract(from: properties)
         // Compatibility bridge — mirror the flex aggregate into the
         // legacy `layout` config so any code paths still reading it
         // (PlaceholderLabel via style.layout.display for .none short-
@@ -295,10 +313,16 @@ enum StyleBuilder {
             // ── Effects ─────────────────────────────────────────────────
             // Opacity migrated to StyleEngine/color (Phase 4) — see
             // OpacityApplier. Not handled here.
-            case "Rotate":
-                s.effect.rotation = ValueExtractors.extractDegrees(prop.data)
-            case "Scale":
-                s.effect.scale = ValueExtractors.extractFloat(prop.data)
+            // Phase 8: Rotate / Scale / Translate / Transform / TransformOrigin
+            // / TransformBox / TransformStyle / Perspective / PerspectiveOrigin
+            // / BackfaceVisibility migrated to StyleEngine/transforms via
+            // TransformsExtractor + TransformsApplier. ClipPath / ClipRule /
+            // Clip migrated to StyleEngine/effects/clip. Filter / BackdropFilter
+            // migrated to StyleEngine/effects/filter. Mask family migrated to
+            // StyleEngine/effects/mask. Visibility / Overflow* migrated to
+            // StyleEngine/visibility. All names live in PropertyRegistry
+            // .migrated so the guard at the top of this loop already skipped
+            // them.
             // BoxShadow migrated to StyleEngine/effects/shadow (Phase 5).
             // Handled by BoxShadowExtractor above; listed in
             // PropertyRegistry.migrated.
@@ -448,6 +472,17 @@ extension View {
             // into a single modifier. Attached late so it wraps over the
             // paint chain.
             .engineTypography(style.typography)
+            // Phase 8 — effects chain. Order matters:
+            //   1. mask clips alpha before paint
+            //   2. filter applies per-pixel effects to painted pixels
+            //   3. clip-path carves the final geometry
+            //   4. transforms warp the finished view (rotate/scale/translate)
+            //   5. visibility/overflow gates what escapes the frame.
+            .engineMask(style.mask)
+            .engineFilter(style.filter)
+            .engineClipPath(style.clipPath)
+            .engineTransforms(style.transforms)
+            .engineVisibility(style.visibility)
             .modifier(EffectsModifier(effect: style.effect))
             .engineSpacingMargin(style.spacing.margin, context: style.spacing.context)
             .engineSpacingMarginTrim(style.spacing.marginTrim)
@@ -475,8 +510,9 @@ private struct EffectsModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .modifier(OpacityMod(value: effect.opacity))
-            .modifier(RotationMod(value: effect.rotation))
-            .modifier(ScaleMod(value: effect.scale))
+            // Phase 8: RotationMod / ScaleMod deleted. The transforms
+            // family now flows through TransformsApplier attached via
+            // `.engineTransforms` in applyStyle above.
             // ShadowMod no longer fires — BoxShadow is the new engine path.
             .modifier(ZIndexMod(value: effect.zIndex))
     }
@@ -489,19 +525,8 @@ private struct OpacityMod: ViewModifier {
     }
 }
 
-private struct RotationMod: ViewModifier {
-    let value: CGFloat?
-    func body(content: Content) -> some View {
-        if let v = value { content.rotationEffect(.degrees(v)) } else { content }
-    }
-}
-
-private struct ScaleMod: ViewModifier {
-    let value: CGFloat?
-    func body(content: Content) -> some View {
-        if let v = value { content.scaleEffect(v) } else { content }
-    }
-}
+// Phase 8: RotationMod + ScaleMod removed. TransformsApplier owns all
+// rotate/scale/translate/skew/matrix/perspective composition.
 
 // Phase 5: ShadowMod removed — BoxShadowApplier owns the paint now.
 

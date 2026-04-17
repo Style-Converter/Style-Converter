@@ -108,6 +108,21 @@ export const migratedProperties = new Set<string>([
   'Position', 'Top', 'Right', 'Bottom', 'Left',
   'InsetBlockStart', 'InsetBlockEnd', 'InsetInlineStart', 'InsetInlineEnd',
   'ZIndex',
+  // Effects + transforms — Phase 8 migration.  See engine/transforms/*,
+  // engine/effects/{clip,filter,mask}/*, engine/visibility/*.  38 properties.
+  // Transforms (10)
+  'Transform', 'Rotate', 'Scale', 'Translate', 'TransformOrigin', 'TransformBox',
+  'TransformStyle', 'Perspective', 'PerspectiveOrigin', 'BackfaceVisibility',
+  // Clip + visibility + overflow (10)
+  'ClipPath', 'ClipPathGeometryBox', 'ClipRule', 'Clip',
+  'Visibility', 'Overflow', 'OverflowX', 'OverflowY', 'OverflowBlock', 'OverflowInline',
+  // Filter (2)
+  'Filter', 'BackdropFilter',
+  // Mask (16)
+  'MaskImage', 'MaskMode', 'MaskRepeat', 'MaskPosition', 'MaskPositionX', 'MaskPositionY',
+  'MaskSize', 'MaskOrigin', 'MaskClip', 'MaskComposite', 'MaskType',
+  'MaskBorderSource', 'MaskBorderSlice', 'MaskBorderWidth', 'MaskBorderOutset',
+  'MaskBorderRepeat', 'MaskBorderMode',
 ]);
 
 /**

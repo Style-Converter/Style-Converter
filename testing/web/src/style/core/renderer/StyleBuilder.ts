@@ -6,10 +6,8 @@
 
 import type { IRProperty } from '../ir/IRModels';
 import {
-  extractColor,
   extractLength,
   extractKeyword,
-  extractDegrees,
   extractMs,
 } from '../types/ValueExtractors';
 // Phase-2 engine wiring — spacing properties now flow through per-family
@@ -67,6 +65,11 @@ import { applyTypographyPhase6 } from '../../engine/typography/_dispatch';
 // Phase-7 layout engine — 55 properties (flexbox, grid, position, advanced
 // anchor + motion-path, plus root flow/top-layer keywords).
 import { applyLayoutPhase7 } from '../../engine/layout/_dispatch';
+// Phase-8 engines — transforms (10), effects/clip+filter+mask (22), visibility
+// + overflow (6).  38 properties total.
+import { applyTransformsPhase8 } from '../../engine/transforms/_dispatch';
+import { applyEffectsPhase8 } from '../../engine/effects/_dispatch';
+import { applyVisibilityPhase8 } from '../../engine/visibility/_dispatch';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -120,6 +123,13 @@ export function buildStyles(properties: IRProperty[]): CSSStyles {
   // Flex*/Justify*/Align*/Grid*/Position/Top/Right/Bottom/Left/ZIndex switch
   // cases below.
   Object.assign(styles, applyLayoutPhase7(properties));
+
+  // Phase-8 engines — transforms/effects/visibility.  Replaces the legacy
+  // Transform/TransformOrigin, Filter/BackdropFilter, ClipPath, Visibility,
+  // Overflow/OverflowX/OverflowY switch cases below.
+  Object.assign(styles, applyTransformsPhase8(properties));
+  Object.assign(styles, applyEffectsPhase8(properties));
+  Object.assign(styles, applyVisibilityPhase8(properties));
 
   for (const prop of properties) {
     // Skip properties already served by the engine path above.
@@ -265,45 +275,13 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     // line-snap, tab-size, etc. flow through `applyTypographyPhase6` above.
 
     // ==================== Overflow ====================
-    case 'Overflow': {
-      const ov = extractKeyword(data);
-      if (ov) styles.overflow = ov.toLowerCase();
-      break;
-    }
-    case 'OverflowX': {
-      const ox = extractKeyword(data);
-      if (ox) styles.overflowX = ox.toLowerCase();
-      break;
-    }
-    case 'OverflowY': {
-      const oy = extractKeyword(data);
-      if (oy) styles.overflowY = oy.toLowerCase();
-      break;
-    }
+    // Migrated to engine/visibility/Overflow* in Phase 8 (applyVisibilityPhase8).
 
     // ==================== Transforms ====================
-    case 'Transform': {
-      const transform = extractTransform(data);
-      if (transform) styles.transform = transform;
-      break;
-    }
-    case 'TransformOrigin': {
-      const origin = extractTransformOrigin(data);
-      if (origin) styles.transformOrigin = origin;
-      break;
-    }
+    // Migrated to engine/transforms/* in Phase 8 (applyTransformsPhase8).
 
     // ==================== Filters ====================
-    case 'Filter': {
-      const filter = extractFilter(data);
-      if (filter) styles.filter = filter;
-      break;
-    }
-    case 'BackdropFilter': {
-      const bf = extractFilter(data);
-      if (bf) styles.backdropFilter = bf;
-      break;
-    }
+    // Migrated to engine/effects/filter/* in Phase 8 (applyEffectsPhase8).
 
     // ==================== Transitions & Animations ====================
     case 'TransitionProperty': {
@@ -338,11 +316,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     // in Phase 4 (engine/background/*).
 
     // ==================== Clip Path ====================
-    case 'ClipPath': {
-      const cp = extractClipPath(data);
-      if (cp) styles.clipPath = cp;
-      break;
-    }
+    // Migrated to engine/effects/clip/* in Phase 8 (applyEffectsPhase8).
 
     // ==================== Cursor ====================
     case 'Cursor': {
@@ -352,11 +326,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Visibility ====================
-    case 'Visibility': {
-      const vis = extractKeyword(data);
-      if (vis) styles.visibility = vis.toLowerCase();
-      break;
-    }
+    // Migrated to engine/visibility/Visibility* in Phase 8.
 
     // ==================== Outline ====================
     // Migrated to engine/borders/outline/Outline* in Phase 5.
@@ -419,119 +389,9 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
 // extractGridTemplate / extractGridSpan removed in Phase 7 — replaced by
 // engine/layout/grid/_grid_shared.ts (trackSize / renderTrackList / gridLine).
 
-function extractTransform(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    // Check for expression
-    if (obj.type === 'expression' && typeof obj.expr === 'string') {
-      return obj.expr;
-    }
-
-    // Check for functions list
-    if (Array.isArray(obj.list)) {
-      return obj.list
-        .map((fn) => {
-          const f = fn as Record<string, unknown>;
-          switch (f.fn) {
-            case 'translate': {
-              const x = extractLength(f.x) || '0';
-              const y = extractLength(f.y) || '0';
-              return `translate(${x}, ${y})`;
-            }
-            case 'translateX':
-              return `translateX(${extractLength(f.x) || '0'})`;
-            case 'translateY':
-              return `translateY(${extractLength(f.y) || '0'})`;
-            case 'rotate':
-              return `rotate(${extractDegrees(f.angle) || 0}deg)`;
-            case 'scale': {
-              const sx = f.x ?? 1;
-              const sy = f.y ?? sx;
-              return `scale(${sx}, ${sy})`;
-            }
-            case 'scaleX':
-              return `scaleX(${f.x ?? 1})`;
-            case 'scaleY':
-              return `scaleY(${f.y ?? 1})`;
-            case 'skew':
-              return `skew(${extractDegrees(f.x) || 0}deg, ${extractDegrees(f.y) || 0}deg)`;
-            case 'skewX':
-              return `skewX(${extractDegrees(f.x) || 0}deg)`;
-            case 'skewY':
-              return `skewY(${extractDegrees(f.y) || 0}deg)`;
-            case 'matrix':
-              return `matrix(${(f.values as number[])?.join(', ') || '1,0,0,1,0,0'})`;
-            default:
-              return null;
-          }
-        })
-        .filter(Boolean)
-        .join(' ');
-    }
-  }
-
-  return null;
-}
-
-function extractTransformOrigin(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    const x = extractLength(obj.x) || 'center';
-    const y = extractLength(obj.y) || 'center';
-    return `${x} ${y}`;
-  }
-
-  return null;
-}
-
-function extractFilter(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((fn) => {
-        const f = fn as Record<string, unknown>;
-        switch (f.fn) {
-          case 'blur':
-            return `blur(${extractLength(f.r) || '0'})`;
-          case 'brightness':
-            return `brightness(${f.v ?? 100}%)`;
-          case 'contrast':
-            return `contrast(${f.v ?? 100}%)`;
-          case 'grayscale':
-            return `grayscale(${f.v ?? 0}%)`;
-          case 'saturate':
-            return `saturate(${f.v ?? 100}%)`;
-          case 'sepia':
-            return `sepia(${f.v ?? 0}%)`;
-          case 'invert':
-            return `invert(${f.v ?? 0}%)`;
-          case 'hue-rotate':
-            return `hue-rotate(${extractDegrees(f.angle) || 0}deg)`;
-          case 'opacity':
-            return `opacity(${f.v ?? 100}%)`;
-          case 'drop-shadow': {
-            const x = extractLength(f.x) || '0';
-            const y = extractLength(f.y) || '0';
-            const blur = extractLength(f.blur) || '0';
-            const color = extractColor(f.color) || 'black';
-            return `drop-shadow(${x} ${y} ${blur} ${color})`;
-          }
-          default:
-            return null;
-        }
-      })
-      .filter(Boolean)
-      .join(' ');
-  }
-
-  return null;
-}
+// Legacy extractTransform / extractTransformOrigin / extractFilter removed in
+// Phase 8 — replaced by the Config/Extractor/Applier triplets under
+// engine/transforms/* and engine/effects/{filter,clip}/*.
 
 function extractTransitionProperty(data: unknown): string | null {
   if (typeof data === 'string') return data;
@@ -603,55 +463,7 @@ function legacyExtractBackgroundPosition(data: unknown): string | null {
   return null;
 }
 
-function extractClipPath(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    if (obj.type === 'none') return 'none';
-
-    if (obj.type === 'circle') {
-      const r = extractLength(obj.radius) || '50%';
-      const pos = obj.position as Record<string, unknown> | undefined;
-      const at = pos ? `at ${pos.x ?? 50}% ${pos.y ?? 50}%` : '';
-      return `circle(${r} ${at})`.trim();
-    }
-
-    if (obj.type === 'ellipse') {
-      const rx = extractLength(obj.radiusX) || '50%';
-      const ry = extractLength(obj.radiusY) || '50%';
-      return `ellipse(${rx} ${ry})`;
-    }
-
-    if (obj.type === 'inset') {
-      const top = extractLength(obj.top) || '0';
-      const right = extractLength(obj.right) || '0';
-      const bottom = extractLength(obj.bottom) || '0';
-      const left = extractLength(obj.left) || '0';
-      return `inset(${top} ${right} ${bottom} ${left})`;
-    }
-
-    if (obj.type === 'polygon' && Array.isArray(obj.points)) {
-      const points = obj.points
-        .map((p) => {
-          const pt = p as Record<string, unknown>;
-          // Support both {x, y} objects and [x, y] arrays
-          const x = pt.x ?? (pt as unknown as number[])[0] ?? 0;
-          const y = pt.y ?? (pt as unknown as number[])[1] ?? 0;
-          return `${x}% ${y}%`;
-        })
-        .join(', ');
-      return `polygon(${points})`;
-    }
-
-    if (obj.type === 'path' && typeof obj.d === 'string') {
-      return `path("${obj.d}")`;
-    }
-  }
-
-  return null;
-}
+// Legacy extractClipPath removed in Phase 8 — see engine/effects/clip/ClipPath*.
 
 function extractAspectRatio(data: unknown): string | null {
   if (typeof data === 'number') return String(data);

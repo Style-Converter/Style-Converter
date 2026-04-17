@@ -1,6 +1,7 @@
 package com.styleconverter.test.style.effects.clip
 
 import androidx.compose.ui.unit.dp
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -46,6 +47,21 @@ import kotlinx.serialization.json.jsonPrimitive
  * ```
  */
 object ClipPathExtractor {
+
+    init {
+        // Phase 8 registration. Claim ClipPath + the legacy `clip` rect() form +
+        // the two clip-path geometry/fill-rule modifiers. ClipPathGeometryBox
+        // and ClipRule don't yet affect the rendered Shape (TODO in the
+        // applier) but are claimed here so coverage reporting is honest — the
+        // IR is consumed, just not every variant is mapped yet.
+        PropertyRegistry.migrated(
+            "ClipPath",
+            "Clip",
+            "ClipPathGeometryBox",
+            "ClipRule",
+            owner = "effects/clip"
+        )
+    }
 
     /**
      * Extract clip-path configuration from a list of property type/data pairs.

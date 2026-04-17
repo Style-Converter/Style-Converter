@@ -2,6 +2,7 @@ package com.styleconverter.test.style.effects.mask
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -25,6 +26,36 @@ import kotlinx.serialization.json.jsonPrimitive
  * Extracts URL from mask-image: url(...) for external image loading.
  */
 object MaskExtractor {
+
+    init {
+        // Phase 8 registration. Mask longhands + the MaskBorder* family.
+        // MaskPositionX/Y and MaskType are claimed even though the Compose
+        // applier currently falls back on a composed BlendMode.DstIn path and
+        // does not split position by axis; MaskBorder* is all-TODO (analogous
+        // to border-image, tracked in Phase 5 follow-ups). Claiming them in
+        // the registry stops the legacy dispatch from trying to re-render
+        // them via the old sdui path and keeps the coverage matrix honest.
+        PropertyRegistry.migrated(
+            "MaskImage",
+            "MaskMode",
+            "MaskRepeat",
+            "MaskPosition",
+            "MaskPositionX",
+            "MaskPositionY",
+            "MaskSize",
+            "MaskOrigin",
+            "MaskClip",
+            "MaskComposite",
+            "MaskType",
+            "MaskBorderSource",
+            "MaskBorderSlice",
+            "MaskBorderWidth",
+            "MaskBorderOutset",
+            "MaskBorderRepeat",
+            "MaskBorderMode",
+            owner = "effects/mask"
+        )
+    }
 
     /**
      * Extract complete mask configuration from property pairs.

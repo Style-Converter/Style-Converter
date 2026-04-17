@@ -102,7 +102,9 @@ function conicGradientCss(obj: Record<string, unknown>, repeating: boolean): str
 }
 
 // Reconstruct one layer from an arbitrary IR entry.  Returns null on garbage.
-function layerCss(entry: unknown): string | null {
+// Exported so sibling modules (engine/effects/mask/MaskImage*) can reuse the
+// same layer serialiser — mask-image uses the identical grammar.
+export function layerCss(entry: unknown): string | null {
   if (entry === null || entry === undefined) return null;              // null entries dropped
   if (typeof entry === 'string') {                                     // bare 'none' sentinel
     if (entry === 'none') return 'none';

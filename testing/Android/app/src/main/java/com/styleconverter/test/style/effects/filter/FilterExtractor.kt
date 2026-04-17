@@ -2,6 +2,7 @@ package com.styleconverter.test.style.effects.filter
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.*
 
@@ -25,6 +26,17 @@ import kotlinx.serialization.json.*
  * ```
  */
 object FilterExtractor {
+
+    init {
+        // Phase 8 registration. `filter` and `backdrop-filter` both consume the
+        // same function-list IR shape so they share one extractor. `url(#id)`
+        // references are parsed but no-op on Compose (see FilterApplier TODO).
+        PropertyRegistry.migrated(
+            "Filter",
+            "BackdropFilter",
+            owner = "effects/filter"
+        )
+    }
 
     /**
      * Extract filter configuration from a list of property type/data pairs.

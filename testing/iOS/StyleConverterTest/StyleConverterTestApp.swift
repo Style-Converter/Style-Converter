@@ -33,6 +33,13 @@ struct StyleConverterTestApp: App {
         // property names; extractors/appliers are no-op today and land in
         // steps 2-5. See testing/iOS/.../StyleEngine/layout/LayoutSelfTest.swift.
         LayoutSelfTest.run()
+        // Phase 8 — transforms family + effects clip/filter/mask +
+        // visibility/overflow. Runs AFTER LayoutSelfTest so the layout
+        // registry drift check is the first failure the developer sees.
+        // Both tests print-only on failure (no assertionFailure / fatal
+        // Error) — ff901e3 hotfix convention.
+        TransformsSelfTest.run()
+        EffectsSelfTest.run()
         #endif
     }
 
