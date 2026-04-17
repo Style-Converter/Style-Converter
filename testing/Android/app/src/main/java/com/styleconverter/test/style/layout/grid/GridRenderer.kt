@@ -1,5 +1,6 @@
-package com.styleconverter.test.style.core.renderer
+package com.styleconverter.test.style.layout.grid
 
+import com.styleconverter.test.style.core.renderer.ComponentRenderer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text

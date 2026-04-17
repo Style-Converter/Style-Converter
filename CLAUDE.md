@@ -151,6 +151,103 @@ All CSS values normalize to universal formats:
 
 ---
 
+## Style-engine architecture (canonical)
+
+All three runtime renderers (Android, iOS, Web) share **one** folder structure
+for their style engines. That structure is locked to the folders under
+`src/main/kotlin/app/irmodels/properties/` and
+`src/main/kotlin/app/parsing/css/properties/longhands/`. These three trees —
+irmodels, parser, style-engine — are kept byte-for-byte parallel: the same
+category paths, the same property files. If a property lives at
+`irmodels/properties/borders/sides/BorderTopWidth.kt`, its runtime
+implementations live at the mirror paths:
+
+```
+testing/Android/app/src/main/java/com/styleconverter/test/style/
+  └── borders/sides/BorderTopWidth{Config,Extractor,Applier}.kt
+testing/iOS/StyleConverterTest/StyleEngine/
+  └── borders/sides/BorderTopWidth{Config,Extractor,Applier}.swift
+testing/web/src/style/engine/
+  └── borders/sides/BorderTopWidth{Config,Extractor,Applier}.ts
+```
+
+The categories (mirrored 1:1 from irmodels/properties/):
+
+```
+animations/ · appearance/ · background/ · borders/ (sides/, radius/, image/)
+color/ · columns/ · container/ · content/ · counters/ · effects/ (clip/, mask/,
+shadow/, filter/, shapes/, blend/) · experimental/ · global/ · images/
+interactions/ · layout/ (advanced/, flexbox/, grid/, position/) · lists/
+math/ · navigation/ · paging/ · performance/ · print/ · regions/ · rendering/
+rhythm/ · scrolling/ · shapes/ · sizing/ · spacing/ · speech/ · svg/ · table/
+transforms/ · typography/
+```
+
+If a category isn't yet implemented on a platform the folder still exists,
+empty, with a `README.md` stub describing what goes there. This keeps coverage
+auditable by `ls`.
+
+## Per-property contract
+
+Each property ships as a **triplet per platform**, in the canonical subfolder:
+
+| file | purpose |
+|---|---|
+| `{Property}Config.{ext}`    | Typed value struct (what was extracted, ready for rendering) |
+| `{Property}Extractor.{ext}` | `IRProperty → Config`. Handles every CSS value flavor the parser recognizes (see `src/main/kotlin/app/parsing/css/properties/longhands/{category}/{Property}PropertyParser.kt` for the full list) |
+| `{Property}Applier.{ext}`   | `Config → platform output` (Compose Modifier on Android, SwiftUI modifier on iOS, CSS declaration on Web) |
+
+### Hard rules for every file
+
+- **Short** — target ≤200 lines. If a file grows past ~300, split it (e.g. one
+  applier per value family).
+- **Every line commented.** Comments explain the *why*, not just the *what*.
+  For extractors, reference the exact CSS spec section or parser file you're
+  mirroring. For appliers, cite the platform API you're calling and why.
+- **No silent fallthroughs.** If a value variant isn't supported on this
+  platform yet, log it via the PropertyTracker or emit a TODO + keep the
+  cross-platform comparison honest.
+- **Registered, not dispatched inline.** Each `Extractor` registers itself
+  with the platform's `PropertyRegistry`; the main `StyleApplier` reads from
+  the registry instead of a giant `switch`. This makes coverage introspectable
+  at runtime (see `PropertyRegistry.allRegistered()`).
+
+## Done definition for a property
+
+A property is "done" when **all five** are true:
+
+1. **Test fixture** in `examples/properties/{category}/{property}.json` exercises
+   every value variant listed in the parser's value flavors (see the CSS
+   parser's `{Property}PropertyParser.kt`). One component per variant.
+2. **Triplet exists on all three platforms** in the matching subfolder, with
+   the commenting + size rules above.
+3. **`./test-all.sh examples/properties/{category}/{property}.json`** runs cleanly:
+   - zero `decode error` rows
+   - every pair's SSIM ≥ 0.95 for every variant
+   - no "size mismatch" warnings
+4. **Baseline committed** — `UPDATE_BASELINE=1 ./test-all.sh …` runs; the
+   resulting `testing/baseline/{platform}__{NNN}_{Variant}.png` files are
+   staged and the baseline PRs are in-scope for the category PR.
+5. **Documentation updated** — the category's coverage matrix row in
+   `testing/README.md` is flipped to ✓.
+
+## Implementation phases
+
+The rollout plan (and the order work is parallelized across agents) lives
+in `testing/ROLLOUT.md`. At a glance:
+
+- **Phase 0** Canonical folder scaffold on all three platforms; Android
+  refactored to mirror irmodels.
+- **Phase 1** Bulletproof primitive extractors (lengths, colors, angles,
+  times, numbers, keywords) — unblocks everything downstream.
+- **Phases 2–10** Category-by-category rollout, parallelizable per category.
+  Order by payoff: spacing → sizing → colors+bg → borders → typography →
+  layout → effects+transforms → animations → long tail.
+- **Phase 11** Baseline harness for the full IR, documentation, coverage
+  matrix.
+
+---
+
 ## Android SDUI Implementation Status
 
 ### Fully Working (Visual Rendering)

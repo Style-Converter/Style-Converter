@@ -25,27 +25,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.styleconverter.test.style.core.ir.IRComponent
+import com.styleconverter.test.style.layout.grid.GridRenderer
 import com.styleconverter.test.style.core.ir.IRProperty
 import com.styleconverter.test.style.core.types.ValueExtractors
 import com.styleconverter.test.style.StyleApplier
-import com.styleconverter.test.style.layout.overflow.OverflowExtractor
+import com.styleconverter.test.style.scrolling.OverflowExtractor
 import kotlinx.serialization.json.jsonPrimitive
-import com.styleconverter.test.style.content.lists.ListStyleExtractor
-import com.styleconverter.test.style.content.lists.ListStyleApplier as StyleListApplier
+import com.styleconverter.test.style.lists.ListStyleExtractor
+import com.styleconverter.test.style.lists.ListStyleApplier as StyleListApplier
 import com.styleconverter.test.style.typography.TextStyleApplier
-import com.styleconverter.test.style.interactive.animations.AnimationExtractor
-import com.styleconverter.test.style.interactive.animations.animatedModifier
-import com.styleconverter.test.style.layout.container.ContainerQueryApplier
-import com.styleconverter.test.style.layout.container.ContainerQueryExtractor
-import com.styleconverter.test.style.layout.columns.MultiColumnApplier
-import com.styleconverter.test.style.layout.columns.MultiColumnExtractor
-import com.styleconverter.test.style.content.tables.TableApplier
-import com.styleconverter.test.style.content.tables.TableApplier.TableCell
-import com.styleconverter.test.style.content.tables.TableExtractor
-import com.styleconverter.test.style.appearance.borders.image.BorderImageApplier
-import com.styleconverter.test.style.appearance.borders.image.BorderImageExtractor
-import com.styleconverter.test.style.interactive.forms.FormStylingApplier
-import com.styleconverter.test.style.interactive.forms.FormStylingExtractor
+import com.styleconverter.test.style.animations.AnimationExtractor
+import com.styleconverter.test.style.animations.animatedModifier
+import com.styleconverter.test.style.container.ContainerQueryApplier
+import com.styleconverter.test.style.container.ContainerQueryExtractor
+import com.styleconverter.test.style.columns.MultiColumnApplier
+import com.styleconverter.test.style.columns.MultiColumnExtractor
+import com.styleconverter.test.style.table.TableApplier
+import com.styleconverter.test.style.table.TableApplier.TableCell
+import com.styleconverter.test.style.table.TableExtractor
+import com.styleconverter.test.style.borders.image.BorderImageApplier
+import com.styleconverter.test.style.borders.image.BorderImageExtractor
+import com.styleconverter.test.style.interactions.forms.FormStylingApplier
+import com.styleconverter.test.style.interactions.forms.FormStylingExtractor
 import com.styleconverter.test.style.content.ContentApplier
 import com.styleconverter.test.style.content.ContentExtractor
 import com.styleconverter.test.style.content.CounterStateProvider
@@ -118,7 +119,7 @@ object ComponentRenderer {
 
         // Apply animations to modifier if present
         val modifier = if (animationConfig?.hasAnimations == true) {
-            animatedModifier(sizedModifier, animationConfig, transitionConfig ?: com.styleconverter.test.style.interactive.animations.TransitionConfig())
+            animatedModifier(sizedModifier, animationConfig, transitionConfig ?: com.styleconverter.test.style.animations.TransitionConfig())
         } else {
             sizedModifier
         }

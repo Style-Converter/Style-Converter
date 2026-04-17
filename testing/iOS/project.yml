@@ -30,6 +30,7 @@ targets:
       - path: StyleConverterTest
         excludes:
           - "Info.plist"
+          - "**/README.md"
     resources:
       - StyleConverterTest/Resources
       - StyleConverterTest/Assets.xcassets

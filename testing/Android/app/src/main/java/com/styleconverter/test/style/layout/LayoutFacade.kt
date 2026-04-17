@@ -1,22 +1,22 @@
 package com.styleconverter.test.style.layout
 
 import androidx.compose.ui.Modifier
-import com.styleconverter.test.style.layout.flex.FlexContainerConfig
-import com.styleconverter.test.style.layout.flex.FlexExtractor
-import com.styleconverter.test.style.layout.flex.FlexItemConfig
+import com.styleconverter.test.style.layout.flexbox.FlexContainerConfig
+import com.styleconverter.test.style.layout.flexbox.FlexExtractor
+import com.styleconverter.test.style.layout.flexbox.FlexItemConfig
 import com.styleconverter.test.style.layout.grid.GridConfig
 import com.styleconverter.test.style.layout.grid.GridExtractor
 import com.styleconverter.test.style.layout.position.PositionApplier
 import com.styleconverter.test.style.layout.position.PositionConfig
 import com.styleconverter.test.style.layout.position.PositionExtractor
-import com.styleconverter.test.style.layout.sizing.SizingApplier
-import com.styleconverter.test.style.layout.sizing.SizingConfig
-import com.styleconverter.test.style.layout.sizing.SizingExtractor
-import com.styleconverter.test.style.layout.spacing.GapConfig
-import com.styleconverter.test.style.layout.spacing.MarginConfig
-import com.styleconverter.test.style.layout.spacing.PaddingConfig
-import com.styleconverter.test.style.layout.spacing.SpacingApplier
-import com.styleconverter.test.style.layout.spacing.SpacingExtractor
+import com.styleconverter.test.style.sizing.SizingApplier
+import com.styleconverter.test.style.sizing.SizingConfig
+import com.styleconverter.test.style.sizing.SizingExtractor
+import com.styleconverter.test.style.spacing.GapConfig
+import com.styleconverter.test.style.spacing.MarginConfig
+import com.styleconverter.test.style.spacing.PaddingConfig
+import com.styleconverter.test.style.spacing.SpacingApplier
+import com.styleconverter.test.style.spacing.SpacingExtractor
 import kotlinx.serialization.json.JsonElement
 
 /**
