@@ -14,7 +14,15 @@
  * and into dedicated `{Property}Extractor.ts` files under
  * `engine/{category}/`. Empty in Phase 0; filled by later phases.
  */
-export const migratedProperties = new Set<string>([]);
+export const migratedProperties = new Set<string>([
+  // Spacing — Phase 2 migration. See engine/spacing/*.
+  'PaddingTop', 'PaddingRight', 'PaddingBottom', 'PaddingLeft',
+  'PaddingBlockStart', 'PaddingBlockEnd', 'PaddingInlineStart', 'PaddingInlineEnd',
+  'MarginTop', 'MarginRight', 'MarginBottom', 'MarginLeft',
+  'MarginBlockStart', 'MarginBlockEnd', 'MarginInlineStart', 'MarginInlineEnd',
+  'Gap', 'RowGap', 'ColumnGap',
+  'MarginTrim',
+]);
 
 /**
  * Returns true when the given IR property type is still served by the

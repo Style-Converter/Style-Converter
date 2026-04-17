@@ -15,6 +15,8 @@ struct StyleConverterTestApp: App {
     init() {
         #if DEBUG
         CoreTypesSelfTest.run()
+        // Phase 2 — spacing extractors + resolver sanity check.
+        SpacingSelfTest.run()
         #endif
     }
 

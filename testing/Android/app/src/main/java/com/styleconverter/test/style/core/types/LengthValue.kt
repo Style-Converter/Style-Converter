@@ -104,10 +104,15 @@ fun extractLength(json: JsonElement?): LengthValue {
     if (json == null) return LengthValue.Unknown
     // Bare string primitives carry intrinsic keywords ("auto" etc.).
     if (json is JsonPrimitive) {
-        // The IR emits intrinsic keywords as raw JSON strings (data: "auto").
-        // Any other primitive (bare number) is not a length we know how to
-        // interpret in isolation, so fall through to Unknown.
-        if (!json.isString) return LengthValue.Unknown
+        // Bare numeric primitives show up on padding/margin longhands as the
+        // percentage shape (spec: "padding: 10%" → data: 10.0). See
+        // examples/properties/spacing/padding-units.json → Padding_Percent_10.
+        // We treat bare numbers as PERCENT so shorthand-expanded % survives
+        // the IR round-trip. Other wrapper shapes handle non-% percentages.
+        if (!json.isString) {
+            val num = json.doubleOrNull ?: return LengthValue.Unknown
+            return LengthValue.Relative(num, LengthUnit.PERCENT, pxFallback = null)
+        }
         return extractIntrinsicKeyword(json.content) ?: LengthValue.Unknown
     }
     if (json !is JsonObject) return LengthValue.Unknown
@@ -117,6 +122,11 @@ fun extractLength(json: JsonElement?): LengthValue {
 
     // Unresolved calc() — the codegen might emit { "calc": "…" } in future.
     (json["calc"] as? JsonPrimitive)?.content?.let { return LengthValue.Calc(it) }
+
+    // New-style calc shape carried by padding-units.json → Padding_Calc_Mixed:
+    // data is { "expr": "calc(10px + 5px)" }. We preserve the expression
+    // verbatim so later CalcExpressionEvaluator runs can resolve it.
+    (json["expr"] as? JsonPrimitive)?.content?.let { return LengthValue.Calc(it) }
 
     // Percentages on sizing properties use their own wrapper shape.
     if ((json["type"] as? JsonPrimitive)?.content == "percentage") {

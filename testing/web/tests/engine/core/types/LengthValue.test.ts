@@ -82,13 +82,26 @@ describe('extractLength', () => {
     expect(extractLength({ original: { v: 5, u: 'NOPE' } }).kind).toBe('unknown');
   });
 
-  it('treats bare number as exact px', () => {
-    expect(extractLength(42)).toEqual({ kind: 'exact', px: 42 });
+  it('treats bare number as percentage (Phase-2 margin/padding convention)', () => {
+    // Margin_Percent_10 / Padding_Percent_10 fixtures emit bare JSON numbers for %.
+    expect(extractLength(10)).toEqual({ kind: 'relative', value: 10, unit: 'percent' });
+    expect(extractLength(0)).toEqual({ kind: 'relative', value: 0, unit: 'percent' });
   });
 
-  it('handles calc expression shape', () => {
+  it('handles calc expression shape ({type:"calc",expression:...})', () => {
     expect(extractLength({ type: 'calc', expression: '100% - 10px' }))
       .toEqual({ kind: 'calc', expression: '100% - 10px' });
+  });
+
+  it('handles {expr:"calc(...)"} shape (Phase-2 spacing survey)', () => {
+    // Spacing fixtures emit {expr:"calc(10px + 5px)"}; outer calc() wrapper stripped.
+    expect(extractLength({ expr: 'calc(10px + 5px)' }))
+      .toEqual({ kind: 'calc', expression: '10px + 5px' });
+  });
+
+  it('handles {expr:"..."} without an outer calc() wrapper', () => {
+    expect(extractLength({ expr: '100% - 2em' }))
+      .toEqual({ kind: 'calc', expression: '100% - 2em' });
   });
 });
 

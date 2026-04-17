@@ -30,26 +30,30 @@ struct ComponentRenderer: View {
 
     @ViewBuilder
     private func layoutContainer(style: ComponentStyle) -> some View {
+        // Phase 2: resolve gap via the new GapApplier. Row gap for vertical
+        // stacks, column gap for horizontal. Zero when no gap/row/col-gap
+        // is set on the IR.
+        let gap = GapApplier.resolve(style.spacing.gap, context: style.spacing.context)
         switch style.layout.display {
         case .flexRow:
             HStack(
                 alignment: style.layout.align.verticalAlignment,
-                spacing: style.layout.columnGap
+                spacing: gap.column
             ) {
                 contentOrPlaceholder(style: style)
             }
         case .flexColumn:
             VStack(
                 alignment: style.layout.align.horizontalAlignment,
-                spacing: style.layout.rowGap
+                spacing: gap.row
             ) {
                 contentOrPlaceholder(style: style)
             }
         case .grid:
             // Grid subset: render as an adaptive LazyVGrid with 2 columns for now.
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 80), spacing: style.layout.columnGap)],
-                spacing: style.layout.rowGap
+                columns: [GridItem(.adaptive(minimum: 80), spacing: gap.column)],
+                spacing: gap.row
             ) {
                 contentOrPlaceholder(style: style)
             }
@@ -62,7 +66,7 @@ struct ComponentRenderer: View {
         case .block:
             VStack(
                 alignment: .leading,
-                spacing: style.layout.rowGap
+                spacing: gap.row
             ) {
                 contentOrPlaceholder(style: style)
             }

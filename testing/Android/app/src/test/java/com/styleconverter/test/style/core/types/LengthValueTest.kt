@@ -122,4 +122,33 @@ class LengthValueTest {
     @Test fun `arbitrary non-keyword string returns Unknown`() {
         assertEquals(LengthValue.Unknown, extractLength(parse(""""nonsense"""")))
     }
+
+    // ------------- Phase 2 spacing IR shapes -------------
+
+    @Test fun `bare numeric primitive treated as PERCENT for padding and margin`() {
+        // examples/properties/spacing/padding-units.json → Padding_Percent_10
+        // emits `data: 10.0` directly as a JSON number. Padding/margin
+        // shorthand expansion drops the {type: percentage, value: N} wrapper
+        // and keeps only the bare number, so the extractor must recognise it.
+        val v = extractLength(parse("10.0"))
+        assertEquals(LengthValue.Relative(10.0, LengthUnit.PERCENT, null), v)
+    }
+
+    @Test fun `bare numeric 25 percent on padding-longhand`() {
+        // Same shape, larger value, exercises the Padding_Percent_25 fixture.
+        val v = extractLength(parse("25.0"))
+        assertEquals(LengthValue.Relative(25.0, LengthUnit.PERCENT, null), v)
+    }
+
+    @Test fun `calc expression is preserved as Calc variant`() {
+        // Padding_Calc_Mixed emits { "expr": "calc(10px + 5px)" }.
+        val v = extractLength(parse("""{"expr":"calc(10px + 5px)"}"""))
+        assertEquals(LengthValue.Calc("calc(10px + 5px)"), v)
+    }
+
+    @Test fun `negative px is preserved as Exact with negative value`() {
+        // margin-basic.json → Margin_Negative_Top emits { "px": -10.0 }.
+        val v = extractLength(parse("""{"px":-10.0}"""))
+        assertEquals(LengthValue.Exact(-10.0), v)
+    }
 }

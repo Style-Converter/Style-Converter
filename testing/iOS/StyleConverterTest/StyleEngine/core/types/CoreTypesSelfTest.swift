@@ -88,6 +88,17 @@ enum CoreTypesSelfTest {
         // Unknown garbage.
         if case .unknown = extractLength(.bool(true)) { } else { f.append("unknown-bool") }
 
+        // Phase 2 shapes — `{ expr: "calc(...)" }` spacing calc form.
+        if case .calc(let e) = extractLength(obj(["expr": .string("calc(10px + 5px)")])),
+           e == "calc(10px + 5px)" { } else { f.append("calc-expr") }
+
+        // Phase 2 shapes — bare-number percent variant used by spacing IR.
+        if case .relative(25, .percent, nil) = extractLengthPercentDefault(.double(25)) { } else { f.append("bare-percent-double") }
+        if case .relative(10, .percent, nil) = extractLengthPercentDefault(.int(10)) { } else { f.append("bare-percent-int") }
+
+        // And the same variant still delegates for non-bare shapes.
+        if case .exact(20) = extractLengthPercentDefault(obj(["px": .double(20)])) { } else { f.append("percent-default-delegates") }
+
         return f.map { "length/\($0)" }
     }
 

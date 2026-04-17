@@ -15,6 +15,17 @@ import {
   extractMs,
   extractInt,
 } from '../types/ValueExtractors';
+// Phase-2 engine wiring — spacing properties now flow through per-family
+// extractors + appliers instead of the legacy switch below.
+import { isLegacyProperty } from '../../engine/PropertyRegistry';
+import { extractPadding } from '../../engine/spacing/PaddingExtractor';
+import { applyPadding } from '../../engine/spacing/PaddingApplier';
+import { extractMargin } from '../../engine/spacing/MarginExtractor';
+import { applyMargin } from '../../engine/spacing/MarginApplier';
+import { extractGap } from '../../engine/spacing/GapExtractor';
+import { applyGap } from '../../engine/spacing/GapApplier';
+import { extractMarginTrim } from '../../engine/spacing/MarginTrimExtractor';
+import { applyMarginTrim } from '../../engine/spacing/MarginTrimApplier';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -26,7 +37,18 @@ export interface CSSStyles {
 export function buildStyles(properties: IRProperty[]): CSSStyles {
   const styles: CSSStyles = {};
 
+  // Phase-2 engine path — spacing properties are bucketed once and
+  // handled by dedicated Config/Applier triplets.  The legacy switch
+  // below skips any migrated type via `isLegacyProperty`.
+  Object.assign(styles, applyPadding(extractPadding(properties)));
+  Object.assign(styles, applyMargin(extractMargin(properties)));
+  Object.assign(styles, applyGap(extractGap(properties)));
+  const marginTrim = extractMarginTrim(properties);
+  if (marginTrim) Object.assign(styles, applyMarginTrim(marginTrim));
+
   for (const prop of properties) {
+    // Skip properties already served by the engine path above.
+    if (!isLegacyProperty(prop.type)) continue;
     applyProperty(styles, prop);
   }
 

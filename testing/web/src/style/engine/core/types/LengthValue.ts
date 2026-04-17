@@ -69,8 +69,9 @@ export function extractLength(data: unknown): LengthValue {
     return { kind: 'unknown' };                                     // 'fit-content' accepted even if not yet parsed
   }
 
-  // Bare number shorthand — treat as raw px (matches Android convention).
-  if (typeof data === 'number') return { kind: 'exact', px: data };
+  // Bare number shorthand — Phase-2 finding: emitted for padding/margin percentages
+  // (e.g. Margin_Percent_10 fixture).  Treat as a percentage so spacing round-trips.
+  if (typeof data === 'number') return { kind: 'relative', value: data, unit: 'percent' };
 
   // Everything below expects an object shape.
   if (typeof data !== 'object') return { kind: 'unknown' };
@@ -79,9 +80,17 @@ export function extractLength(data: unknown): LengthValue {
   // Grid fraction: { fr: N } — quirk #4, NOT a length even though related.
   if (typeof obj.fr === 'number') return { kind: 'fraction', fr: obj.fr };
 
-  // calc() support: IR wraps complex expressions in { type:'calc', expression:'...' }.
+  // calc() support — two IR shapes seen in the wild:
+  //   { type:'calc', expression:'...' }   (primitive fixtures)
+  //   { expr:'calc(10px + 5px)' }         (spacing fixtures, per Phase-2 survey)
   if (obj.type === 'calc' && typeof obj.expression === 'string') {
     return { kind: 'calc', expression: obj.expression };
+  }
+  if (typeof obj.expr === 'string') {
+    // Strip redundant 'calc(...)' wrapper if IR already includes it, so callers can wrap uniformly.
+    const raw = obj.expr.trim();
+    const inner = raw.startsWith('calc(') && raw.endsWith(')') ? raw.slice(5, -1) : raw;
+    return { kind: 'calc', expression: inner };
   }
 
   // Percentage envelope: { type:'percentage', value:N } — quirk #2.

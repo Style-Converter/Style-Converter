@@ -1,84 +1,32 @@
 package com.styleconverter.test.style.spacing
 
-import androidx.compose.ui.unit.Dp
-import com.styleconverter.test.style.core.types.ValueExtractors
+// Back-compat facade over the per-family extractors. The modular triplets
+// (PaddingExtractor, MarginExtractor, GapExtractor) are the real work;
+// callers that still reference SpacingExtractor route through here to keep
+// Phase 2 a strictly additive migration at the call sites.
+//
+// LayoutFacade.extractConfig() is the only current caller; it invokes
+// extractPaddingConfig / extractMarginConfig / extractGapConfig directly.
+
 import kotlinx.serialization.json.JsonElement
 
 object SpacingExtractor {
 
-    fun extractPaddingConfig(properties: List<Pair<String, JsonElement?>>): PaddingConfig {
-        var config = PaddingConfig()
+    /** Delegate to PaddingExtractor. Kept for the LayoutFacade call site. */
+    fun extractPaddingConfig(properties: List<Pair<String, JsonElement?>>): PaddingConfig =
+        PaddingExtractor.extract(properties)
 
-        properties.forEach { (type, data) ->
-            val dp = ValueExtractors.extractDp(data)
-            config = when (type) {
-                "PaddingTop" -> config.copy(top = dp)
-                "PaddingRight" -> config.copy(end = dp)
-                "PaddingBottom" -> config.copy(bottom = dp)
-                "PaddingLeft" -> config.copy(start = dp)
-                "PaddingBlockStart" -> config.copy(blockStart = dp)
-                "PaddingBlockEnd" -> config.copy(blockEnd = dp)
-                "PaddingInlineStart" -> config.copy(inlineStart = dp)
-                "PaddingInlineEnd" -> config.copy(inlineEnd = dp)
-                else -> config
-            }
-        }
+    /** Delegate to MarginExtractor. */
+    fun extractMarginConfig(properties: List<Pair<String, JsonElement?>>): MarginConfig =
+        MarginExtractor.extract(properties)
 
-        return config
-    }
+    /** Delegate to GapExtractor. */
+    fun extractGapConfig(properties: List<Pair<String, JsonElement?>>): GapConfig =
+        GapExtractor.extract(properties)
 
-    fun extractMarginConfig(properties: List<Pair<String, JsonElement?>>): MarginConfig {
-        var config = MarginConfig()
-
-        properties.forEach { (type, data) ->
-            val dp = ValueExtractors.extractDp(data)
-            config = when (type) {
-                "MarginTop" -> config.copy(top = dp)
-                "MarginRight" -> config.copy(end = dp)
-                "MarginBottom" -> config.copy(bottom = dp)
-                "MarginLeft" -> config.copy(start = dp)
-                "MarginBlockStart" -> config.copy(blockStart = dp)
-                "MarginBlockEnd" -> config.copy(blockEnd = dp)
-                "MarginInlineStart" -> config.copy(inlineStart = dp)
-                "MarginInlineEnd" -> config.copy(inlineEnd = dp)
-                else -> config
-            }
-        }
-
-        return config
-    }
-
-    fun extractGapConfig(properties: List<Pair<String, JsonElement?>>): GapConfig {
-        var rowGap: Dp? = null
-        var columnGap: Dp? = null
-
-        properties.forEach { (type, data) ->
-            when (type) {
-                "Gap" -> {
-                    val dp = ValueExtractors.extractDp(data)
-                    rowGap = dp
-                    columnGap = dp
-                }
-                "RowGap" -> rowGap = ValueExtractors.extractDp(data)
-                "ColumnGap" -> columnGap = ValueExtractors.extractDp(data)
-            }
-        }
-
-        return GapConfig(rowGap, columnGap)
-    }
-
-    /**
-     * Check if a property type is a spacing-related property.
-     */
-    fun isSpacingProperty(propertyType: String): Boolean {
-        return propertyType in SPACING_PROPERTIES
-    }
-
-    private val SPACING_PROPERTIES = setOf(
-        "PaddingTop", "PaddingRight", "PaddingBottom", "PaddingLeft",
-        "PaddingBlockStart", "PaddingBlockEnd", "PaddingInlineStart", "PaddingInlineEnd",
-        "MarginTop", "MarginRight", "MarginBottom", "MarginLeft",
-        "MarginBlockStart", "MarginBlockEnd", "MarginInlineStart", "MarginInlineEnd",
-        "Gap", "RowGap", "ColumnGap"
-    )
+    /** Predicate used by LayoutFacade.isLayoutProperty. */
+    fun isSpacingProperty(propertyType: String): Boolean =
+        PaddingExtractor.isPaddingProperty(propertyType) ||
+            MarginExtractor.isMarginProperty(propertyType) ||
+            GapExtractor.isGapProperty(propertyType)
 }

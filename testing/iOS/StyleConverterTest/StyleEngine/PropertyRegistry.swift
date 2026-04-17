@@ -35,8 +35,16 @@ enum PropertyRegistry {
     /// the corresponding extractor instead of the legacy `StyleBuilder` path.
     /// Until then, `isLegacy(_:)` returns `true` for every property type.
     static let migrated: Set<String> = [
-        // Intentionally empty in Phase 0. Do not add entries without also
-        // wiring a matching extractor — see testing/ROLLOUT.md.
+        // Phase 2 — spacing family. Padding/Margin physical+logical, Gap
+        // longhands, MarginTrim. See testing/iOS/.../StyleEngine/spacing/.
+        "PaddingTop", "PaddingRight", "PaddingBottom", "PaddingLeft",
+        "PaddingBlockStart", "PaddingBlockEnd",
+        "PaddingInlineStart", "PaddingInlineEnd",
+        "MarginTop", "MarginRight", "MarginBottom", "MarginLeft",
+        "MarginBlockStart", "MarginBlockEnd",
+        "MarginInlineStart", "MarginInlineEnd",
+        "Gap", "RowGap", "ColumnGap",
+        "MarginTrim",
     ]
 
     // MARK: - Query helpers

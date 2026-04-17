@@ -38,12 +38,18 @@ struct SizeConfig {
     var aspectRatio: CGFloat? = nil
 }
 
+// Legacy spacing config retained as an empty shim so old references compile
+// while the engine-based PaddingConfig/MarginConfig take over. Migrated-out
+// properties (Padding*, Margin*) are handled via PaddingApplier / MarginApplier
+// attached through the new `spacing: SpacingConfig` field on ComponentStyle.
 struct SpacingConfig {
-    var paddingTop: CGFloat    = 0
-    var paddingRight: CGFloat  = 0
-    var paddingBottom: CGFloat = 0
-    var paddingLeft: CGFloat   = 0
-    var hasPadding: Bool { paddingTop != 0 || paddingRight != 0 || paddingBottom != 0 || paddingLeft != 0 }
+    // Phase 2 extractor outputs. Nil when not present in the IR.
+    var padding: PaddingConfig? = nil
+    var margin: MarginConfig? = nil
+    var gap: GapConfig? = nil
+    var marginTrim: MarginTrimConfig? = nil
+    // Threaded render context. FontSize is resolved during extraction.
+    var context: SpacingContext = SpacingContext()
 }
 
 struct BorderConfig {
@@ -135,7 +141,27 @@ enum StyleBuilder {
     static func build(from properties: [IRProperty]) -> ComponentStyle {
         var s = ComponentStyle()
 
+        // Phase 2: extract FontSize first so SpacingContext has the right
+        // pt value before padding/margin resolve em/rem. Default stays 16pt
+        // per the CSS spec when no FontSize property is present.
+        if let fs = properties.first(where: { $0.type == "FontSize" })
+            .flatMap({ ValueExtractors.extractPx($0.data) }) {
+            s.spacing.context.fontSizePx = Double(fs)
+        }
+
+        // Phase 2: extract each spacing family once via the new extractors.
+        // Properties in `PropertyRegistry.migrated` are then skipped in the
+        // legacy switch below, so there's no double-handling.
+        s.spacing.padding    = PaddingExtractor.extract(from: properties)
+        s.spacing.margin     = MarginExtractor.extract(from: properties)
+        s.spacing.gap        = GapExtractor.extract(from: properties)
+        s.spacing.marginTrim = MarginTrimExtractor.extract(from: properties)
+
         for prop in properties {
+            // Skip migrated properties — the spacing extractors above
+            // have already consumed them. `contains` on a Set is O(1).
+            if PropertyRegistry.migrated.contains(prop.type) { continue }
+
             switch prop.type {
             // ── Sizing ──────────────────────────────────────────────────
             case "Width", "InlineSize":
@@ -153,15 +179,7 @@ enum StyleBuilder {
             case "AspectRatio":
                 s.size.aspectRatio = ValueExtractors.extractFloat(prop.data)
 
-            // ── Spacing ─────────────────────────────────────────────────
-            case "PaddingTop", "PaddingBlockStart":
-                s.spacing.paddingTop = ValueExtractors.extractPx(prop.data) ?? 0
-            case "PaddingRight", "PaddingInlineEnd":
-                s.spacing.paddingRight = ValueExtractors.extractPx(prop.data) ?? 0
-            case "PaddingBottom", "PaddingBlockEnd":
-                s.spacing.paddingBottom = ValueExtractors.extractPx(prop.data) ?? 0
-            case "PaddingLeft", "PaddingInlineStart":
-                s.spacing.paddingLeft = ValueExtractors.extractPx(prop.data) ?? 0
+            // ── Spacing ─── migrated to StyleEngine/spacing (Phase 2) ──
 
             // ── Colors ──────────────────────────────────────────────────
             case "BackgroundColor":
@@ -233,15 +251,7 @@ enum StyleBuilder {
             case "FlexWrap":
                 let kw = ValueExtractors.normalize(ValueExtractors.extractKeyword(prop.data))
                 s.layout.wrap = (kw == "WRAP") ? .wrap : (kw == "WRAP_REVERSE") ? .wrapReverse : .noWrap
-            case "Gap":
-                if let g = ValueExtractors.extractPx(prop.data) {
-                    s.layout.rowGap = g
-                    s.layout.columnGap = g
-                }
-            case "RowGap":
-                if let g = ValueExtractors.extractPx(prop.data) { s.layout.rowGap = g }
-            case "ColumnGap":
-                if let g = ValueExtractors.extractPx(prop.data) { s.layout.columnGap = g }
+            // Gap / RowGap / ColumnGap migrated — see GapExtractor.
 
             // ── Effects ─────────────────────────────────────────────────
             case "Opacity":
@@ -354,10 +364,15 @@ extension View {
     func applyStyle(_ style: ComponentStyle) -> some View {
         self
             .modifier(SizingModifier(size: style.size))
-            .modifier(PaddingModifier(spacing: style.spacing))
+            // Phase 2: padding / margin / margin-trim from StyleEngine/spacing.
+            // Order matters — padding is inside the border (CSS box model),
+            // margin is outside.
+            .engineSpacingPadding(style.spacing.padding, context: style.spacing.context)
             .modifier(BackgroundModifier(color: style.backgroundColor, border: style.border))
             .modifier(BorderModifier(border: style.border))
             .modifier(EffectsModifier(effect: style.effect))
+            .engineSpacingMargin(style.spacing.margin, context: style.spacing.context)
+            .engineSpacingMarginTrim(style.spacing.marginTrim)
     }
 }
 
@@ -409,17 +424,6 @@ private struct AspectRatioModifier: ViewModifier {
         } else {
             content
         }
-    }
-}
-
-private struct PaddingModifier: ViewModifier {
-    let spacing: SpacingConfig
-    func body(content: Content) -> some View {
-        content
-            .padding(.top,    spacing.paddingTop)
-            .padding(.trailing, spacing.paddingRight)
-            .padding(.bottom, spacing.paddingBottom)
-            .padding(.leading,  spacing.paddingLeft)
     }
 }
 

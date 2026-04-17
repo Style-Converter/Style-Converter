@@ -66,7 +66,12 @@ func extractLength(_ value: IRValue?) -> LengthValue {
     case .string(let s):
         return lengthFromBareString(s)
 
-    // Bare numeric — some callers pass pre-resolved pixels (rare but legal).
+    // Bare numeric — ambiguity: in sizing props these are pre-resolved px,
+    // but in padding/margin IR the converter emits bare numbers to mean
+    // percent (e.g. `padding: 10%` → `{"PaddingTop": 10.0}`). Callers that
+    // know the context should prefer `extractLengthPercentDefault` below
+    // when a bare number should be treated as percent. Default remains
+    // `exact(px:)` for Phase 1 compatibility with sizing fixtures.
     case .double(let d): return .exact(px: d)
     case .int(let i):    return .exact(px: Double(i))
 
@@ -89,8 +94,27 @@ private func lengthFromBareString(_ s: String) -> LengthValue {
     }
 }
 
+// Phase 2 variant: same as `extractLength` but treats a bare numeric IRValue
+// as a `%` relative value, which is how the spacing IR emits percentages
+// (e.g. `padding-top: 10%` → the number `10.0` at the wire level). Every
+// other shape behaves identically to `extractLength`.
+func extractLengthPercentDefault(_ value: IRValue?) -> LengthValue {
+    guard let value = value else { return .unknown }
+    switch value {
+    case .double(let d): return .relative(value: d, unit: .percent, pxFallback: nil)
+    case .int(let i):    return .relative(value: Double(i), unit: .percent, pxFallback: nil)
+    default:             return extractLength(value)
+    }
+}
+
 // Object dispatch table — preserves documented IR quirks #1–#4.
 private func lengthFromObject(_ o: [String: IRValue]) -> LengthValue {
+    // Phase 2 quirk: calc expressions in spacing IR arrive as `{ "expr": "..." }`.
+    // Distinct from the Phase 1 `{ "type": "calc", "expression": "..." }` form.
+    if let expr = o["expr"]?.stringValue {
+        return .calc(expression: expr)
+    }
+
     // Quirk #4: grid-only `{ "fr": <n> }` shape (lengths-special.json).
     if let fr = o["fr"]?.doubleValue {
         return .fraction(fr: fr)
