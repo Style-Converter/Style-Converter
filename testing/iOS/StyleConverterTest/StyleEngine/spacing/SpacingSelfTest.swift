@@ -85,7 +85,10 @@ enum SpacingSelfTest {
             ("MarginLeft", obj(["px": .double(0)])),
         ]))
         if m3?.verticalAutoAlignment == .center { } else { f.append("margin-v-auto-center") }
-        if m3?.horizontalAutoAlignment == .none { } else { f.append("margin-h-noauto") }
+        // Explicit enum qualification — `horizontalAutoAlignment` on an
+        // Optional makes bare `.none` resolve to `Optional.none` (nil),
+        // which always false-positives this check.
+        if m3?.horizontalAutoAlignment == HorizontalAutoAlignment.none { } else { f.append("margin-h-noauto") }
 
         // Horizontal both auto → center.
         let m4 = MarginExtractor.extract(from: props([
@@ -124,7 +127,8 @@ enum SpacingSelfTest {
         let t = MarginTrimExtractor.extract(from: props([("MarginTrim", .string("BLOCK_START"))]))
         if t?.mode == .blockStart { } else { f.append("margin-trim-block-start") }
         let t2 = MarginTrimExtractor.extract(from: props([("MarginTrim", .string("NONE"))]))
-        if t2?.mode == .none { } else { f.append("margin-trim-none") }
+        // Explicit enum qualification — same Swift quirk as above.
+        if t2?.mode == MarginTrimMode.none { } else { f.append("margin-trim-none") }
         return f.map { "marginTrim/\($0)" }
     }
 
