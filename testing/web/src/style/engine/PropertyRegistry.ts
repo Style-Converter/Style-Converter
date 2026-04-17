@@ -53,6 +53,40 @@ export const migratedProperties = new Set<string>([
   'BoxShadow',
   // Misc (3): BoxDecorationBreak / CornerShape / BorderBoundary.
   'BoxDecorationBreak', 'CornerShape', 'BorderBoundary',
+  // Typography — Phase 6 migration.  See engine/typography/*.  109 properties
+  // (CaretColor was already migrated under engine/color/* in Phase 4, so it's
+  // not re-added here).
+  'AlignmentBaseline', 'BaselineShift', 'BaselineSource', 'BlockEllipsis',
+  'Direction', 'DominantBaseline', 'DominantBaselineAdjust',
+  'FontDisplay', 'FontFamily', 'FontFeatureSettings', 'FontKerning',
+  'FontLanguageOverride', 'FontMaxSize', 'FontMinSize', 'FontNamedInstance',
+  'FontOpticalSizing', 'FontPalette', 'FontSize', 'FontSizeAdjust',
+  'FontSmooth', 'FontStretch', 'FontStyle',
+  'FontSynthesisPosition', 'FontSynthesisSmallCaps', 'FontSynthesisStyle', 'FontSynthesisWeight',
+  'FontVariantAlternates', 'FontVariantCaps', 'FontVariantEastAsian',
+  'FontVariantEmoji', 'FontVariantLigatures', 'FontVariantNumeric', 'FontVariantPosition',
+  'FontVariationSettings', 'FontWeight',
+  'GlyphOrientationHorizontal', 'GlyphOrientationVertical', 'HangingPunctuation',
+  'HyphenateCharacter', 'HyphenateLimitChars', 'HyphenateLimitLast',
+  'HyphenateLimitLines', 'HyphenateLimitZone', 'Hyphens',
+  'InitialLetter', 'InitialLetterAlign', 'Kerning',
+  'LetterSpacing', 'LineBreak', 'LineClamp', 'LineGrid',
+  'LineHeight', 'LineHeightStep', 'LineSnap', 'MaxLines',
+  'Orphans', 'OverflowWrap', 'Quotes',
+  'RubyAlign', 'RubyMerge', 'RubyOverhang', 'RubyPosition',
+  'TabSize', 'TextAlign', 'TextAlignAll', 'TextAlignLast', 'TextAnchor',
+  'TextAutospace', 'TextBoxEdge', 'TextBoxTrim', 'TextCombineUpright',
+  'TextDecorationColor', 'TextDecorationLine', 'TextDecorationSkip',
+  'TextDecorationSkipInk', 'TextDecorationStyle', 'TextDecorationThickness',
+  'TextEmphasis', 'TextEmphasisColor', 'TextEmphasisPosition', 'TextEmphasisStyle',
+  'TextGroupAlign', 'TextIndent', 'TextJustify', 'TextOrientation',
+  'TextOverflow', 'TextRendering', 'TextShadow', 'TextSizeAdjust',
+  'TextSpaceCollapse', 'TextSpaceTrim', 'TextSpacing', 'TextSpacingTrim',
+  'TextTransform', 'TextUnderlineOffset', 'TextUnderlinePosition',
+  'TextWrap', 'TextWrapMode', 'TextWrapStyle',
+  'UnicodeBidi', 'VerticalAlign', 'VerticalAlignLast',
+  'WhiteSpace', 'WhiteSpaceCollapse', 'Widows',
+  'WordBreak', 'WordSpaceTransform', 'WordSpacing', 'WordWrap', 'WritingMode',
 ]);
 
 /**

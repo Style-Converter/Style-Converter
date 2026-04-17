@@ -100,6 +100,11 @@ struct ComponentStyle {
     var boxShadow: BoxShadowConfig?       = nil
     var borderMisc: BorderMiscConfig?     = nil
 
+    // Phase 6 — typography aggregate. Populated once by
+    // TypographyExtractor; consumed by TypographyApplier attached in
+    // the applyStyle chain below.
+    var typography: TypographyAggregate? = nil
+
     // Phase 4 — colour + background + blend + isolation family outputs.
     // All optional: nil means "no matching property in IR" so the
     // corresponding applier short-circuits to identity.
@@ -177,6 +182,27 @@ enum StyleBuilder {
         s.boxShadow    = BoxShadowExtractor.extract(from: properties)
         s.borderMisc   = BorderMiscExtractor.extract(from: properties)
 
+        // Phase 6 — typography. TypographyExtractor calls every triplet
+        // extractor, folds results into a single TypographyAggregate, and
+        // returns nil when nothing touched it. Every typography property
+        // name (including the "unsupported" groups) is in
+        // PropertyRegistry.migrated so the legacy switch below skips them.
+        s.typography = TypographyExtractor.extract(from: properties)
+        // Compatibility bridge for PlaceholderLabel in ComponentRenderer,
+        // which still reads `style.text.fontSize / fontWeight / italic /
+        // textAlign` directly. Mirror the aggregate's values so preview
+        // labels keep reflecting the declared typography.
+        if let agg = s.typography {
+            if let px = agg.fontSizePx     { s.text.fontSize = px }
+            if let w = agg.fontWeight      { s.text.fontWeight = w }
+            if let it = agg.italic         { s.text.fontItalic = it }
+            if let tr = agg.letterSpacingPx { s.text.letterSpacing = tr }
+            if let lh = agg.lineHeightPx   { s.text.lineHeight = lh }
+            if let a = agg.textAlign       { s.text.textAlign = a }
+            s.text.underline = s.text.underline || agg.underline
+            s.text.strikethrough = s.text.strikethrough || agg.strikethrough
+        }
+
         // Compatibility bridge — ComponentRenderer reads `text.color`
         // and `backgroundColor` directly (PlaceholderLabel uses the
         // latter to pick a contrasting text colour). Mirror the Phase 4
@@ -220,25 +246,14 @@ enum StyleBuilder {
             // property name is in PropertyRegistry.migrated so the guard
             // at the top of the loop already skipped them.
 
-            // ── Typography ──────────────────────────────────────────────
-            case "FontSize":
-                s.text.fontSize = ValueExtractors.extractPx(prop.data)
-            case "FontWeight":
-                s.text.fontWeight = parseFontWeight(prop.data)
-            case "FontStyle":
-                if let kw = ValueExtractors.extractKeyword(prop.data)?.lowercased() {
-                    s.text.fontItalic = (kw == "italic" || kw == "oblique")
-                }
-            case "LetterSpacing":
-                s.text.letterSpacing = ValueExtractors.extractPx(prop.data)
-            case "LineHeight":
-                s.text.lineHeight = ValueExtractors.extractPx(prop.data)
-            case "TextAlign":
-                s.text.textAlign = parseTextAlign(prop.data)
-            case "TextDecoration":
-                let kw = ValueExtractors.extractKeyword(prop.data)?.lowercased() ?? ""
-                if kw.contains("under") { s.text.underline = true }
-                if kw.contains("line-through") || kw.contains("strike") { s.text.strikethrough = true }
+            // ── Typography ── migrated to StyleEngine/typography (Phase 6).
+            // Every font-*, line-*, text-*, white-space, word-break,
+            // hyphen*, letter/word-spacing, tab-size, direction,
+            // writing-mode, unicode-bidi, vertical-align, quotes,
+            // text-rendering, plus the 60+ no-op grouped family props,
+            // now flow through TypographyExtractor + TypographyApplier.
+            // All owned names live in PropertyRegistry.migrated so the
+            // guard at the top of the loop already skipped them.
 
             // ── Layout / display ────────────────────────────────────────
             case "Display":
@@ -287,36 +302,8 @@ enum StyleBuilder {
 
     // MARK: - Parsing helpers
 
-    private static func parseFontWeight(_ v: IRValue) -> Font.Weight? {
-        if let n = ValueExtractors.extractInt(v) {
-            switch n {
-            case ..<200: return .ultraLight
-            case ..<300: return .thin
-            case ..<400: return .light
-            case ..<500: return .regular
-            case ..<600: return .medium
-            case ..<700: return .semibold
-            case ..<800: return .bold
-            case ..<900: return .heavy
-            default:     return .black
-            }
-        }
-        switch ValueExtractors.extractKeyword(v)?.lowercased() {
-        case "bold":    return .bold
-        case "bolder":  return .heavy
-        case "lighter": return .light
-        case "normal":  return .regular
-        default:        return nil
-        }
-    }
-
-    private static func parseTextAlign(_ v: IRValue) -> TextAlignment {
-        switch ValueExtractors.normalize(ValueExtractors.extractKeyword(v)) {
-        case "CENTER":         return .center
-        case "RIGHT", "END":   return .trailing
-        default:               return .leading
-        }
-    }
+    // Phase 6: parseFontWeight and parseTextAlign removed — the typography
+    // extractors (FontWeightExtractor, TextAlignExtractor) own these parses.
 
     private static func parseJustify(_ v: IRValue) -> LayoutConfig.Justify {
         switch ValueExtractors.normalize(ValueExtractors.extractKeyword(v)) {
@@ -400,6 +387,12 @@ extension View {
             // controls; caret is a stub. Both happily go anywhere.
             .engineAccentColor(style.accentColor)
             .engineCaretColor(style.caretColor)
+            // Phase 6 — typography aggregate. Collapses font-size/weight
+            // /style/family + tracking + line-spacing + alignment +
+            // line-limit + truncation + text-case + underline + shadow
+            // into a single modifier. Attached late so it wraps over the
+            // paint chain.
+            .engineTypography(style.typography)
             .modifier(EffectsModifier(effect: style.effect))
             .engineSpacingMargin(style.spacing.margin, context: style.spacing.context)
             .engineSpacingMarginTrim(style.spacing.marginTrim)

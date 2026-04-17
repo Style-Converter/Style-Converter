@@ -64,6 +64,8 @@ import { applyIsolation }   from '../../engine/performance/IsolationApplier';
 import { applyBordersPhase5 } from '../../engine/borders/_dispatch';
 import { applyBoxShadow } from '../../engine/effects/shadow/BoxShadowApplier';
 import { extractBoxShadow } from '../../engine/effects/shadow/BoxShadowExtractor';
+// Phase-6 typography engine — 109 properties (CaretColor migrated in Phase 4).
+import { applyTypographyPhase6 } from '../../engine/typography/_dispatch';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -108,6 +110,9 @@ export function buildStyles(properties: IRProperty[]): CSSStyles {
   // properties plus BoxShadow routed separately.
   Object.assign(styles, applyBordersPhase5(properties));
   Object.assign(styles, applyBoxShadow(extractBoxShadow(properties)));
+
+  // Phase-6 typography engine — single fold handles all 109 typography props.
+  Object.assign(styles, applyTypographyPhase6(properties));
 
   for (const prop of properties) {
     // Skip properties already served by the engine path above.
@@ -341,66 +346,12 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     // CSS parser before it reaches us, so no case here is needed.
 
     // ==================== Typography ====================
-    case 'FontSize': {
-      const fs = extractFontSize(data);
-      if (fs) styles.fontSize = fs;
-      break;
-    }
-    case 'FontWeight': {
-      const fw = extractFontWeight(data);
-      if (fw) styles.fontWeight = fw;
-      break;
-    }
-    case 'FontFamily': {
-      const ff = extractFontFamily(data);
-      if (ff) styles.fontFamily = ff;
-      break;
-    }
-    case 'FontStyle': {
-      const fst = extractKeyword(data);
-      if (fst) styles.fontStyle = fst.toLowerCase();
-      break;
-    }
-    case 'LineHeight': {
-      const lh = extractLineHeight(data);
-      if (lh) styles.lineHeight = lh;
-      break;
-    }
-    case 'LetterSpacing': {
-      const ls = extractLength(data);
-      if (ls) styles.letterSpacing = ls;
-      break;
-    }
-    case 'TextAlign': {
-      const ta = extractKeyword(data);
-      if (ta) styles.textAlign = ta.toLowerCase();
-      break;
-    }
-    case 'TextDecoration': {
-      const td = extractKeyword(data);
-      if (td) styles.textDecoration = td.toLowerCase().replace('_', ' ');
-      break;
-    }
-    case 'TextTransform': {
-      const tt = extractKeyword(data);
-      if (tt) styles.textTransform = tt.toLowerCase();
-      break;
-    }
-    case 'WhiteSpace': {
-      const ws = extractKeyword(data);
-      if (ws) styles.whiteSpace = ws.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'WordBreak': {
-      const wb = extractKeyword(data);
-      if (wb) styles.wordBreak = wb.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'OverflowWrap': {
-      const ow = extractKeyword(data);
-      if (ow) styles.overflowWrap = ow.toLowerCase().replace('_', '-');
-      break;
-    }
+    // Migrated to engine/typography/* in Phase 6 — all font-*, line-*,
+    // letter/word-spacing, text-*, white-space, word-break, overflow-wrap,
+    // line-break, hyphens, direction, writing-mode, ruby-*, vertical-align,
+    // text-shadow, text-overflow, line-clamp, quotes, hanging-punctuation,
+    // initial-letter*, orphans, widows, text-rendering, kerning, line-grid,
+    // line-snap, tab-size, etc. flow through `applyTypographyPhase6` above.
 
     // ==================== Overflow ====================
     case 'Overflow': {
@@ -469,11 +420,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     // Migrated to engine/effects/shadow/BoxShadow* in Phase 5.
 
     // ==================== Text Shadow ====================
-    case 'TextShadow': {
-      const ts = extractTextShadow(data);
-      if (ts) styles.textShadow = ts;
-      break;
-    }
+    // Migrated to engine/typography/TextShadow* in Phase 6.
 
     // ==================== Background Image ====================
     // BackgroundImage/Size/Position/Repeat/Clip/Origin/Attachment migrated
@@ -554,79 +501,9 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
 
 // extractBorderWidth removed — now handled by engine/borders/sides/_shared.ts
 
-function extractFontSize(data: unknown): string | null {
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    // Check for normalized px value
-    if (typeof obj.px === 'number') return `${obj.px}px`;
-  }
-
-  const keyword = extractKeyword(data);
-  if (keyword) return keyword.toLowerCase().replace('_', '-');
-
-  return extractLength(data);
-}
-
-function extractFontWeight(data: unknown): string | number | null {
-  if (typeof data === 'number') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    if (typeof obj.weight === 'number') return obj.weight;
-  }
-
-  const keyword = extractKeyword(data);
-  if (keyword) {
-    switch (keyword.toLowerCase()) {
-      case 'normal':
-        return 400;
-      case 'bold':
-        return 700;
-      default:
-        return keyword.toLowerCase();
-    }
-  }
-
-  return null;
-}
-
-function extractFontFamily(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data.map((f) => (typeof f === 'string' ? f : '')).filter(Boolean).join(', ');
-  }
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    if (Array.isArray(obj.families)) {
-      return obj.families.join(', ');
-    }
-    if (typeof obj.family === 'string') return obj.family;
-  }
-
-  return extractKeyword(data);
-}
-
-function extractLineHeight(data: unknown): string | number | null {
-  if (typeof data === 'number') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    if (typeof obj.value === 'number') {
-      if (obj.unit === 'px') return `${obj.value}px`;
-      return obj.value; // multiplier
-    }
-  }
-
-  const keyword = extractKeyword(data);
-  if (keyword === 'normal') return 'normal';
-
-  return extractLength(data);
-}
+// Legacy typography extractors (FontSize/FontWeight/FontFamily/LineHeight)
+// removed in Phase 6 — replaced by the per-property triplets under
+// engine/typography/*.
 
 function extractGridTemplate(data: unknown): string {
   if (Array.isArray(data)) {
@@ -829,24 +706,7 @@ function extractSingleTimingFunction(data: unknown): string | null {
 
 // Legacy extractBoxShadow removed — now handled by engine/effects/shadow/BoxShadow*
 
-function extractTextShadow(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((shadow) => {
-        const s = shadow as Record<string, unknown>;
-        const x = extractLength(s.x) || '0';
-        const y = extractLength(s.y) || '0';
-        const blur = extractLength(s.blur) || '0';
-        const color = extractColor(s.c) || extractColor(s.color) || 'rgba(0,0,0,0.25)';
-        return `${x} ${y} ${blur} ${color}`;
-      })
-      .join(', ');
-  }
-
-  return null;
-}
+// Legacy extractTextShadow removed in Phase 6 — see engine/typography/TextShadow*.
 
 // Legacy background-position helper retained for `ObjectPosition` (not yet migrated).
 function legacyExtractBackgroundPosition(data: unknown): string | null {

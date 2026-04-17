@@ -25,6 +25,10 @@ struct StyleConverterTestApp: App {
         // misc keywords). See testing/iOS/.../StyleEngine/borders/
         // BordersSelfTest.swift.
         BordersSelfTest.run()
+        // Phase 6 — typography family (font + font-variant + line + spacing
+        // + decoration + wrapping + writing + other + grouped unsupported).
+        // See testing/iOS/.../StyleEngine/typography/TypographySelfTest.swift.
+        TypographySelfTest.run()
         #endif
     }
 

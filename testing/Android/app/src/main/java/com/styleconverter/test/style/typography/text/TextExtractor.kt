@@ -1,5 +1,6 @@
 package com.styleconverter.test.style.typography.text
 
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonElement
 
@@ -7,6 +8,35 @@ import kotlinx.serialization.json.JsonElement
  * Extracts text-related configuration from IR properties.
  */
 object TextExtractor {
+
+    init {
+        // Claim writing-mode + text-wrap + hyphenation-limit families. The
+        // writing-mode quartet feeds WritingModeApplier (vertical text,
+        // direction reversal). text-wrap sub-properties feed TextWrapConfig.
+        // HyphenateLimit* are parse-only today — Compose's LineBreak API has
+        // no knob for these, but registering them here keeps the legacy
+        // dispatcher from re-entering them.
+        // CSS spec: https://drafts.csswg.org/css-writing-modes-4/
+        //           https://drafts.csswg.org/css-text-4/#wrapping
+        PropertyRegistry.migrated(
+            // Writing mode family
+            "WritingMode",
+            "TextOrientation",
+            "Direction",
+            "UnicodeBidi",
+            // Text wrap family (modern CSS Text 4)
+            "TextWrap",
+            "TextWrapMode",
+            "TextWrapStyle",
+            // Hyphenation tuning (parse-only on Compose)
+            "HyphenateCharacter",
+            "HyphenateLimitChars",
+            "HyphenateLimitLast",
+            "HyphenateLimitLines",
+            "HyphenateLimitZone",
+            owner = "typography/text"
+        )
+    }
 
     fun extractWritingModeConfig(properties: List<Pair<String, JsonElement?>>): WritingModeConfig {
         var writingMode = WritingModeValue.HORIZONTAL_TB

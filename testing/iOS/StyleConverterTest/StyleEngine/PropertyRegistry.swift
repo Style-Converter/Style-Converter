@@ -34,7 +34,7 @@ enum PropertyRegistry {
     /// When a property is added here, the renderer will route its IR through
     /// the corresponding extractor instead of the legacy `StyleBuilder` path.
     /// Until then, `isLegacy(_:)` returns `true` for every property type.
-    static let migrated: Set<String> = [
+    static let migrated: Set<String> = Set<String>([
         // Phase 2 — spacing family. Padding/Margin physical+logical, Gap
         // longhands, MarginTrim. See testing/iOS/.../StyleEngine/spacing/.
         "PaddingTop", "PaddingRight", "PaddingBottom", "PaddingLeft",
@@ -95,7 +95,42 @@ enum PropertyRegistry {
         "BoxShadow",
         // Miscellaneous keyword-only — 3.
         "BoxDecorationBreak", "CornerShape", "BorderBoundary",
-    ]
+        // Phase 6 — typography. Every rendering-capable triplet under
+        // StyleEngine/typography/{font,font-variant,line,spacing,
+        // decoration,wrapping,writing,other} is listed explicitly; the
+        // five "unsupported" grouped extractors contribute their
+        // {Group}Property.names lists via Set-union at the bottom.
+        //
+        // font/ (9)
+        "FontSize", "FontFamily", "FontWeight", "FontStyle", "FontStretch",
+        "FontFeatureSettings", "FontVariationSettings",
+        "FontKerning", "FontOpticalSizing",
+        // font-variant/ (7)
+        "FontVariantCaps", "FontVariantNumeric", "FontVariantLigatures",
+        "FontVariantEastAsian", "FontVariantPosition", "FontVariantAlternates",
+        "FontVariantEmoji",
+        // line/ (3)
+        "LineHeight", "LineClamp", "MaxLines",
+        // spacing/ (4)
+        "LetterSpacing", "WordSpacing", "TabSize", "TextIndent",
+        // decoration/ (8)
+        "TextDecorationLine", "TextDecorationStyle", "TextDecorationColor",
+        "TextDecorationThickness", "TextUnderlineOffset", "TextUnderlinePosition",
+        "TextShadow", "TextTransform",
+        // wrapping/ (11)
+        "TextAlign", "TextAlignLast", "TextJustify", "TextWrap",
+        "WhiteSpace", "WordBreak", "OverflowWrap", "LineBreak",
+        "Hyphens", "HyphenateCharacter", "TextOverflow",
+        // writing/ (5)
+        "Direction", "UnicodeBidi", "WritingMode", "TextOrientation", "VerticalAlign",
+        // other/ (2)
+        "Quotes", "TextRendering",
+    ])
+    .union(UnsupportedSvgTypographyProperty.set)
+    .union(UnsupportedPrintTypographyProperty.set)
+    .union(UnsupportedRubyEmphasisProperty.set)
+    .union(UnsupportedFontMetaProperty.set)
+    .union(UnsupportedSpacingProperty.set)
 
     // MARK: - Query helpers
 
