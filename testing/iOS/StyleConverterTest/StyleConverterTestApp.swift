@@ -29,6 +29,10 @@ struct StyleConverterTestApp: App {
         // + decoration + wrapping + writing + other + grouped unsupported).
         // See testing/iOS/.../StyleEngine/typography/TypographySelfTest.swift.
         TypographySelfTest.run()
+        // Phase 7 — layout family scaffold (step 1). Registers 60 layout
+        // property names; extractors/appliers are no-op today and land in
+        // steps 2-5. See testing/iOS/.../StyleEngine/layout/LayoutSelfTest.swift.
+        LayoutSelfTest.run()
         #endif
     }
 

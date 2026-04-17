@@ -85,6 +85,15 @@ object ComponentRenderer {
         // Extract property pairs for extractors
         val propertyPairs = effectiveProperties.map { it.type to it.data }
 
+        // Phase 7 step 1: style-engine layout hook (no-op short-circuit).
+        // extractLayoutConfig() returns LayoutConfig.Empty in step 1, and
+        // containerDecision() returns ContainerDecision.default which the
+        // renderer treats as "defer to legacy path." Populated in later steps.
+        val layoutConfig = com.styleconverter.test.style.layout.LayoutFacade.extractLayoutConfig(propertyPairs)
+        val engineDecision = com.styleconverter.test.style.layout.LayoutFacade.containerDecision(layoutConfig)
+        // Step 1: engineDecision is always .default; legacy path still runs unchanged.
+        // Follow-up steps (flexbox/grid/position) will populate this.
+
         // Extract data outside composable scope with error handling
         val baseModifier = try {
             StyleApplier.applyProperties(effectiveProperties)

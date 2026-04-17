@@ -198,4 +198,56 @@ object LayoutFacade {
         "FlexGrow", "FlexShrink", "FlexBasis",
         "AlignSelf", "Order"
     )
+
+    // --- Phase 7 step 1: style-engine LayoutConfig hook ---------------------
+    //
+    // The three methods below delegate to the new LayoutExtractor /
+    // LayoutApplier scaffold. They are intentionally separate from the legacy
+    // `extractConfig` / `applyToModifier` above — those remain untouched so
+    // ComponentRenderer's existing code path works byte-identically.
+    //
+    // Later Phase 7 steps will migrate callers from the legacy pair to the
+    // style-engine triplet, then (step 6) delete the legacy pair. Until then
+    // both exist side by side.
+    //
+    // The method names deliberately don't collide with the legacy ones:
+    //   extractConfig       -> legacy LayoutFacade.LayoutConfig
+    //   extractLayoutConfig -> new style-engine LayoutConfig (top-level in package)
+
+    /**
+     * Phase 7 entrypoint — extract the style-engine [LayoutConfig] scaffold.
+     *
+     * Step 1: returns [LayoutConfig.Empty] (all nulls). See
+     * [LayoutExtractor.extractLayoutConfig] for the contract.
+     */
+    fun extractLayoutConfig(
+        properties: List<Pair<String, JsonElement?>>
+    ): com.styleconverter.test.style.layout.LayoutConfig {
+        return LayoutExtractor.extractLayoutConfig(properties)
+    }
+
+    /**
+     * Phase 7 entrypoint — ask the style engine which Compose container this
+     * component should render with. Step 1 always returns
+     * [ContainerDecision.default] which signals "defer to the legacy renderer."
+     */
+    fun containerDecision(
+        config: com.styleconverter.test.style.layout.LayoutConfig?
+    ): ContainerDecision {
+        // Null-safe so ComponentRenderer can pass null in failure paths.
+        if (config == null) return ContainerDecision.default
+        return LayoutApplier.containerDecision(config)
+    }
+
+    /**
+     * Phase 7 entrypoint — child-level Modifier contribution (zIndex,
+     * alignSelf, order, relative inset). Step 1 returns identity Modifier so
+     * the legacy StyleApplier chain is unaffected.
+     */
+    fun childModifier(
+        config: com.styleconverter.test.style.layout.LayoutConfig?
+    ): Modifier {
+        if (config == null) return Modifier
+        return LayoutApplier.childModifier(config)
+    }
 }

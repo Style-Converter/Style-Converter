@@ -131,6 +131,13 @@ enum PropertyRegistry {
     .union(UnsupportedRubyEmphasisProperty.set)
     .union(UnsupportedFontMetaProperty.set)
     .union(UnsupportedSpacingProperty.set)
+    // Phase 7 — layout family (flexbox + grid + position + advanced +
+    // root). Scaffold-only in step 1: the 60 names below are registered
+    // so the renderer ledger reflects ownership, but `LayoutExtractor`
+    // currently returns nil and `LayoutApplier` is identity. Real
+    // extractors/appliers land in Phase 7 steps 2-5. See
+    // testing/iOS/.../StyleEngine/layout/LayoutExtractor.swift.
+    .union(LayoutProperty.set)
 
     // MARK: - Query helpers
 
