@@ -152,6 +152,36 @@ enum PropertyRegistry {
     // appliers are identity in this phase (see AnimationsApplier.swift).
     .union(AnimationsProperty.set)
     .union(ScrollTimelineProperty.set)
+    // Phase 10 — long-tail sweep (~22 categories, ~150 property names).
+    // Each category owns a grouped Config/Extractor/Applier triplet under
+    // StyleEngine/<category>/. Nearly all appliers are identity-with-TODO
+    // because SwiftUI has no analog; a small SwiftUI-capable subset
+    // (scroll-snap, overscroll-behavior, pointer-events:none, user-
+    // select:none) is flagged in the per-category applier headers for a
+    // future wiring pass. See examples/properties/README-phase10.md.
+    .union(ScrollingProperty.set)
+    .union(SvgProperty.set)
+    .union(UnsupportedSpeechProperty.set)
+    .union(RenderingProperty.set)
+    .union(UnsupportedPrintProperty.set)
+    .union(UnsupportedPagingProperty.set)
+    .union(UnsupportedRegionsProperty.set)
+    .union(InteractionsProperty.set)
+    .union(PerformanceProperty.set)
+    .union(ColumnsProperty.set)
+    .union(TableProperty.set)
+    .union(ShapesProperty.set)
+    .union(RhythmProperty.set)
+    .union(UnsupportedNavigationProperty.set)
+    .union(ImagesProperty.set)
+    .union(AppearanceProperty.set)
+    .union(CountersProperty.set)
+    .union(ListsProperty.set)
+    .union(ContainerProperty.set)
+    .union(UnsupportedMathProperty.set)
+    .union(ExperimentalProperty.set)
+    .union(ContentProperty.set)
+    .union(GlobalProperty.set)
 
     // MARK: - Query helpers
 

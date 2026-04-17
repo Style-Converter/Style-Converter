@@ -136,6 +136,91 @@ export const migratedProperties = new Set<string>([
   'TimelineScope', 'ViewTimeline', 'ViewTimelineAxis', 'ViewTimelineInset',
   'ViewTimelineName', 'ViewTransitionName', 'ViewTransitionClass', 'ViewTransitionGroup',
   'ScrollTimeline', 'ScrollTimelineName', 'ScrollTimelineAxis',
+  // Phase 10 — long tail (~170 properties across 22 categories).  All route
+  // through `engine/<category>/_dispatch.ts` + the per-category
+  // `apply<Category>Phase10(properties)` entry point.  Web is the privileged
+  // platform: nearly all of these pass straight through to native CSS.  A
+  // subset are csstype-widened because they're CSS L4 / spec-only / dropped-
+  // from-spec; see the individual appliers for MDN links.
+  // ── scrolling (44, non-timeline) ─────────────────────────────────────
+  'ScrollBehavior', 'ScrollSnapType', 'ScrollSnapAlign', 'ScrollSnapStop',
+  'ScrollPadding', 'ScrollPaddingTop', 'ScrollPaddingRight', 'ScrollPaddingBottom', 'ScrollPaddingLeft',
+  'ScrollPaddingBlock', 'ScrollPaddingBlockStart', 'ScrollPaddingBlockEnd',
+  'ScrollPaddingInline', 'ScrollPaddingInlineStart', 'ScrollPaddingInlineEnd',
+  'ScrollMargin', 'ScrollMarginTop', 'ScrollMarginRight', 'ScrollMarginBottom', 'ScrollMarginLeft',
+  'ScrollMarginBlock', 'ScrollMarginBlockStart', 'ScrollMarginBlockEnd',
+  'ScrollMarginInline', 'ScrollMarginInlineStart', 'ScrollMarginInlineEnd',
+  'OverscrollBehavior', 'OverscrollBehaviorX', 'OverscrollBehaviorY',
+  'OverscrollBehaviorBlock', 'OverscrollBehaviorInline',
+  'ScrollbarWidth', 'ScrollbarColor', 'ScrollbarGutter',
+  'OverflowAnchor', 'OverflowClipMargin',
+  'ScrollStart', 'ScrollStartX', 'ScrollStartY', 'ScrollStartBlock', 'ScrollStartInline',
+  'ScrollStartTarget', 'ScrollMarkerGroup', 'ScrollTargetGroup',
+  // ── svg (36) ─────────────────────────────────────────────────────────
+  'Fill', 'FillOpacity', 'FillRule',
+  'Stroke', 'StrokeOpacity', 'StrokeWidth', 'StrokeDasharray', 'StrokeDashoffset',
+  'StrokeLinecap', 'StrokeLinejoin', 'StrokeMiterlimit',
+  'StopColor', 'StopOpacity', 'FloodColor', 'FloodOpacity', 'LightingColor',
+  'ColorInterpolation', 'ColorInterpolationFilters', 'ColorRendering',
+  'MarkerStart', 'MarkerMid', 'MarkerEnd', 'Marker',
+  'PaintOrder', 'ShapeRendering', 'VectorEffect', 'BufferedRendering', 'EnableBackground',
+  'Cx', 'Cy', 'R', 'Rx', 'Ry', 'X', 'Y', 'D',
+  // ── speech (30) ──────────────────────────────────────────────────────
+  'Volume', 'Speak', 'SpeakAs', 'SpeakHeader', 'SpeakNumeral', 'SpeakPunctuation',
+  'Pause', 'PauseBefore', 'PauseAfter', 'Rest', 'RestBefore', 'RestAfter',
+  'Cue', 'CueBefore', 'CueAfter',
+  'VoiceFamily', 'VoiceRate', 'VoicePitch', 'VoiceRange', 'VoiceStress',
+  'VoiceVolume', 'VoiceDuration', 'VoiceBalance',
+  'Pitch', 'PitchRange', 'Richness', 'Stress', 'SpeechRate', 'Azimuth', 'Elevation',
+  // ── rendering (9) ────────────────────────────────────────────────────
+  'ContentVisibility', 'FieldSizing', 'ForcedColorAdjust', 'PrintColorAdjust',
+  'ImageOrientation', 'ImageResolution', 'InputSecurity', 'InterpolateSize', 'Zoom',
+  // ── print (11) ───────────────────────────────────────────────────────
+  'Bleed', 'BookmarkLabel', 'BookmarkLevel', 'BookmarkState', 'BookmarkTarget',
+  'FootnoteDisplay', 'FootnotePolicy', 'Leader', 'Marks', 'Page', 'Size',
+  // ── regions (10) ─────────────────────────────────────────────────────
+  'FlowInto', 'FlowFrom', 'RegionFragment', 'Continue', 'CopyInto',
+  'WrapFlow', 'WrapThrough', 'WrapBefore', 'WrapAfter', 'WrapInside',
+  // ── interactions (8) ─────────────────────────────────────────────────
+  'Cursor', 'PointerEvents', 'UserSelect', 'TouchAction', 'Resize',
+  'Interactivity', 'Caret', 'CaretShape',
+  // ── performance (7) — Isolation was Phase 4 ──────────────────────────
+  'Contain', 'WillChange',
+  'ContainIntrinsicSize', 'ContainIntrinsicWidth', 'ContainIntrinsicHeight',
+  'ContainIntrinsicBlockSize', 'ContainIntrinsicInlineSize',
+  // ── columns (7) — ColumnGap was Phase 2 ──────────────────────────────
+  'ColumnCount', 'ColumnWidth',
+  'ColumnRuleStyle', 'ColumnRuleWidth', 'ColumnRuleColor',
+  'ColumnSpan', 'ColumnFill',
+  // ── paging (7) ───────────────────────────────────────────────────────
+  'BreakBefore', 'BreakAfter', 'BreakInside',
+  'PageBreakBefore', 'PageBreakAfter', 'PageBreakInside', 'MarginBreak',
+  // ── table (5) ────────────────────────────────────────────────────────
+  'BorderCollapse', 'BorderSpacing', 'CaptionSide', 'EmptyCells', 'TableLayout',
+  // ── shapes (5) ───────────────────────────────────────────────────────
+  'ShapeOutside', 'ShapeMargin', 'ShapePadding', 'ShapeImageThreshold', 'ShapeInside',
+  // ── rhythm (5) — block-step family, widen ────────────────────────────
+  'BlockStep', 'BlockStepAlign', 'BlockStepInsert', 'BlockStepRound', 'BlockStepSize',
+  // ── navigation (5) — dropped from spec, widen ────────────────────────
+  'NavUp', 'NavDown', 'NavLeft', 'NavRight', 'ReadingOrder',
+  // ── images (4) ───────────────────────────────────────────────────────
+  'ImageRendering', 'ObjectFit', 'ObjectPosition', 'ObjectViewBox',
+  // ── appearance (4) ───────────────────────────────────────────────────
+  'Appearance', 'AppearanceVariant', 'ColorAdjust', 'ImageRenderingQuality',
+  // ── counters (3) ─────────────────────────────────────────────────────
+  'CounterIncrement', 'CounterReset', 'CounterSet',
+  // ── lists (3) ────────────────────────────────────────────────────────
+  'ListStyleType', 'ListStylePosition', 'ListStyleImage',
+  // ── container (3) ────────────────────────────────────────────────────
+  'Container', 'ContainerName', 'ContainerType',
+  // ── math (3), widen ──────────────────────────────────────────────────
+  'MathStyle', 'MathShift', 'MathDepth',
+  // ── experimental (3), widen ──────────────────────────────────────────
+  'PresentationLevel', 'Running', 'StringSet',
+  // ── content (1) — Quotes already Phase 6 typography ──────────────────
+  'Content',
+  // ── global (1) ───────────────────────────────────────────────────────
+  'All',
 ]);
 
 /**

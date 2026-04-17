@@ -45,6 +45,11 @@ struct StyleConverterTestApp: App {
         // EffectsSelfTest so earlier phase drift surfaces first. Print-
         // only on failure (ff901e3 hotfix convention).
         AnimationsSelfTest.run()
+        // Phase 10 — long-tail sweep (~22 categories, ~150 property
+        // names registered via grouped Config/Extractor/Applier
+        // triplets). Runs last so earlier-phase drift surfaces first.
+        // Print-only on failure (ff901e3 convention).
+        Phase10SelfTest.run()
         #endif
     }
 

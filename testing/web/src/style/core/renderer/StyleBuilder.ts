@@ -73,7 +73,32 @@ import { applyVisibilityPhase8 } from '../../engine/visibility/_dispatch';
 // (26 props under engine/animations/) and scroll-timeline (3 props under
 // engine/scrolling/).  29 properties total.
 import { applyAnimationsPhase9 } from '../../engine/animations/_dispatch';
-import { applyScrollingPhase9 } from '../../engine/scrolling/_dispatch';
+import { applyScrollingPhase9, applyScrollingPhase10 } from '../../engine/scrolling/_dispatch';
+// Phase-10 long-tail engines — 22 categories covering ~170 remaining properties.
+// Web pass-through for nearly all; csstype widening is category-local (see the
+// individual appliers for MDN links + widening rationale).
+import { applySvgPhase10 } from '../../engine/svg/_dispatch';
+import { applySpeechPhase10 } from '../../engine/speech/_dispatch';
+import { applyRenderingPhase10 } from '../../engine/rendering/_dispatch';
+import { applyPrintPhase10 } from '../../engine/print/_dispatch';
+import { applyRegionsPhase10 } from '../../engine/regions/_dispatch';
+import { applyInteractionsPhase10 } from '../../engine/interactions/_dispatch';
+import { applyPerformancePhase10 } from '../../engine/performance/_dispatch';
+import { applyColumnsPhase10 } from '../../engine/columns/_dispatch';
+import { applyPagingPhase10 } from '../../engine/paging/_dispatch';
+import { applyTablePhase10 } from '../../engine/table/_dispatch';
+import { applyShapesPhase10 } from '../../engine/shapes/_dispatch';
+import { applyRhythmPhase10 } from '../../engine/rhythm/_dispatch';
+import { applyNavigationPhase10 } from '../../engine/navigation/_dispatch';
+import { applyImagesPhase10 } from '../../engine/images/_dispatch';
+import { applyAppearancePhase10 } from '../../engine/appearance/_dispatch';
+import { applyCountersPhase10 } from '../../engine/counters/_dispatch';
+import { applyListsPhase10 } from '../../engine/lists/_dispatch';
+import { applyContainerPhase10 } from '../../engine/container/_dispatch';
+import { applyMathPhase10 } from '../../engine/math/_dispatch';
+import { applyExperimentalPhase10 } from '../../engine/experimental/_dispatch';
+import { applyContentPhase10 } from '../../engine/content/_dispatch';
+import { applyGlobalPhase10 } from '../../engine/global/_dispatch';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -140,6 +165,34 @@ export function buildStyles(properties: IRProperty[]): CSSStyles {
   // below and brings the previously-missing Animation* family online.
   Object.assign(styles, applyAnimationsPhase9(properties));
   Object.assign(styles, applyScrollingPhase9(properties));
+
+  // Phase-10 long tail — 22 categories flip from legacy switch / default
+  // PascalCase→kebab fallback to explicit Config/Extractor/Applier triplets.
+  // Removes the legacy Cursor / PointerEvents / UserSelect / ObjectFit /
+  // ObjectPosition switch cases below.
+  Object.assign(styles, applyScrollingPhase10(properties));
+  Object.assign(styles, applySvgPhase10(properties));
+  Object.assign(styles, applySpeechPhase10(properties));
+  Object.assign(styles, applyRenderingPhase10(properties));
+  Object.assign(styles, applyPrintPhase10(properties));
+  Object.assign(styles, applyRegionsPhase10(properties));
+  Object.assign(styles, applyInteractionsPhase10(properties));
+  Object.assign(styles, applyPerformancePhase10(properties));
+  Object.assign(styles, applyColumnsPhase10(properties));
+  Object.assign(styles, applyPagingPhase10(properties));
+  Object.assign(styles, applyTablePhase10(properties));
+  Object.assign(styles, applyShapesPhase10(properties));
+  Object.assign(styles, applyRhythmPhase10(properties));
+  Object.assign(styles, applyNavigationPhase10(properties));
+  Object.assign(styles, applyImagesPhase10(properties));
+  Object.assign(styles, applyAppearancePhase10(properties));
+  Object.assign(styles, applyCountersPhase10(properties));
+  Object.assign(styles, applyListsPhase10(properties));
+  Object.assign(styles, applyContainerPhase10(properties));
+  Object.assign(styles, applyMathPhase10(properties));
+  Object.assign(styles, applyExperimentalPhase10(properties));
+  Object.assign(styles, applyContentPhase10(properties));
+  Object.assign(styles, applyGlobalPhase10(properties));
 
   for (const prop of properties) {
     // Skip properties already served by the engine path above.
@@ -315,12 +368,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     // ==================== Clip Path ====================
     // Migrated to engine/effects/clip/* in Phase 8 (applyEffectsPhase8).
 
-    // ==================== Cursor ====================
-    case 'Cursor': {
-      const cursor = extractKeyword(data);
-      if (cursor) styles.cursor = cursor.toLowerCase().replace('_', '-');
-      break;
-    }
+    // Cursor migrated to engine/interactions/Cursor* in Phase 10.
 
     // ==================== Visibility ====================
     // Migrated to engine/visibility/Visibility* in Phase 8.
@@ -328,38 +376,9 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     // ==================== Outline ====================
     // Migrated to engine/borders/outline/Outline* in Phase 5.
 
-    // ==================== Aspect Ratio ====================
-    case 'AspectRatio': {
-      const ar = extractAspectRatio(data);
-      if (ar) styles.aspectRatio = ar;
-      break;
-    }
-
-    // ==================== Object Fit ====================
-    case 'ObjectFit': {
-      const of = extractKeyword(data);
-      if (of) styles.objectFit = of.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'ObjectPosition': {
-      const op = legacyExtractBackgroundPosition(data);
-      if (op) styles.objectPosition = op;
-      break;
-    }
-
-    // ==================== Pointer Events ====================
-    case 'PointerEvents': {
-      const pe = extractKeyword(data);
-      if (pe) styles.pointerEvents = pe.toLowerCase();
-      break;
-    }
-
-    // ==================== User Select ====================
-    case 'UserSelect': {
-      const us = extractKeyword(data);
-      if (us) styles.userSelect = us.toLowerCase();
-      break;
-    }
+    // AspectRatio already handled by Phase-3 sizing engine above; no legacy case.
+    // ObjectFit / ObjectPosition migrated to engine/images/* in Phase 10.
+    // PointerEvents / UserSelect migrated to engine/interactions/* in Phase 10.
 
     // ==================== Mix Blend Mode ====================
     // MixBlendMode migrated in Phase 4 (engine/effects/blend/*).
@@ -398,36 +417,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
 
 // Legacy extractTextShadow removed in Phase 6 — see engine/typography/TextShadow*.
 
-// Legacy background-position helper retained for `ObjectPosition` (not yet migrated).
-function legacyExtractBackgroundPosition(data: unknown): string | null {
-  const keyword = extractKeyword(data);
-  if (keyword) return keyword.toLowerCase();
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    const x = obj.x ?? 50;
-    const y = obj.y ?? 50;
-    return `${x}% ${y}%`;
-  }
-
-  return null;
-}
-
 // Legacy extractClipPath removed in Phase 8 — see engine/effects/clip/ClipPath*.
-
-function extractAspectRatio(data: unknown): string | null {
-  if (typeof data === 'number') return String(data);
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    if (typeof obj.width === 'number' && typeof obj.height === 'number') {
-      return `${obj.width} / ${obj.height}`;
-    }
-    if (typeof obj.ratio === 'number') {
-      return String(obj.ratio);
-    }
-  }
-
-  return null;
-}
+// Legacy legacyExtractBackgroundPosition / extractAspectRatio removed in Phase 10 —
+// ObjectPosition now goes through engine/images/ObjectPosition* and AspectRatio
+// has been handled by Phase-3 sizing engine since migration.
