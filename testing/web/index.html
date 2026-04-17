@@ -34,6 +34,29 @@
         border: 1px solid rgba(255,255,255,0.15);
         border-radius: 12px;
       }
+      /* Capture mode: a flat list of chromeless canvases with NO phone-frame
+       * border, rounded corners, or scroll container. The CaptureGallery JS
+       * toggles `<body class="capture-mode">` before the first paint. */
+      body.capture-mode {
+        padding-top: 0;
+        justify-content: flex-start;
+        overflow: visible;
+      }
+      body.capture-mode,
+      body.capture-mode html {
+        background: #1a1a2e;
+        height: auto;
+      }
+      body.capture-mode #root {
+        width: 390px;
+        min-width: 390px;
+        max-width: 390px;
+        height: auto;
+        overflow: visible;
+        border: none;
+        border-radius: 0;
+        background: #1a1a2e;
+      }
     </style>
   </head>
   <body>

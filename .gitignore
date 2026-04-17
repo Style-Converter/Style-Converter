@@ -23,3 +23,18 @@ Thumbs.db
 # Runtime
 out/
 *.class
+
+# Testing artefacts
+# ─ per-platform capture folders: regenerated each run by test-all.sh
+# ─ HTML report + diffs: regenerated each run
+# ─ Xcode project (xcodegen-generated) + build output
+# `testing/baseline/` is NOT ignored — commit it when you want to lock
+# known-good captures for regression checks via --baseline.
+testing/iOS/screenshots/
+testing/Android/screenshots/
+testing/web/screenshots/
+testing/report/
+testing/iOS/StyleConverterTest.xcodeproj/
+testing/iOS/build/
+testing/node_modules/
+node_modules/
