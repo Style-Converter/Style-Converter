@@ -66,6 +66,35 @@ enum PropertyRegistry {
         "BackgroundAttachment",
         "MixBlendMode", "BackgroundBlendMode",
         "Isolation",
+        // Phase 5 — border family. Sides (physical + logical widths, colours,
+        // styles + the three shorthand longhands), all eight radius corners,
+        // outline quartet, border-image quintet, BoxShadow, and the keyword-
+        // only miscellanies (BoxDecorationBreak, CornerShape, BorderBoundary).
+        // See testing/iOS/.../StyleEngine/borders/ and effects/shadow/.
+        // Sides — shorthand longhands + 4 physical × 3 + 4 logical × 3 = 27.
+        "BorderWidth", "BorderColor", "BorderStyle",
+        "BorderTopWidth", "BorderTopColor", "BorderTopStyle",
+        "BorderRightWidth", "BorderRightColor", "BorderRightStyle",
+        "BorderBottomWidth", "BorderBottomColor", "BorderBottomStyle",
+        "BorderLeftWidth", "BorderLeftColor", "BorderLeftStyle",
+        "BorderBlockStartWidth", "BorderBlockStartColor", "BorderBlockStartStyle",
+        "BorderBlockEndWidth",   "BorderBlockEndColor",   "BorderBlockEndStyle",
+        "BorderInlineStartWidth", "BorderInlineStartColor", "BorderInlineStartStyle",
+        "BorderInlineEndWidth",   "BorderInlineEndColor",   "BorderInlineEndStyle",
+        // Radius — 4 physical + 4 logical = 8.
+        "BorderTopLeftRadius", "BorderTopRightRadius",
+        "BorderBottomRightRadius", "BorderBottomLeftRadius",
+        "BorderStartStartRadius", "BorderStartEndRadius",
+        "BorderEndEndRadius",   "BorderEndStartRadius",
+        // Outline — 4.
+        "OutlineWidth", "OutlineStyle", "OutlineColor", "OutlineOffset",
+        // Border-image — 5.
+        "BorderImageSource", "BorderImageSlice", "BorderImageWidth",
+        "BorderImageOutset", "BorderImageRepeat",
+        // BoxShadow — 1 (lives under effects/shadow/).
+        "BoxShadow",
+        // Miscellaneous keyword-only — 3.
+        "BoxDecorationBreak", "CornerShape", "BorderBoundary",
     ]
 
     // MARK: - Query helpers

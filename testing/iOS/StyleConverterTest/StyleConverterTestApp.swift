@@ -21,6 +21,10 @@ struct StyleConverterTestApp: App {
         SizingSelfTest.run()
         // Phase 4 — colour + background + blend + isolation extractors.
         ColorBackgroundSelfTest.run()
+        // Phase 5 — border family (sides, radius, outline, image, shadow,
+        // misc keywords). See testing/iOS/.../StyleEngine/borders/
+        // BordersSelfTest.swift.
+        BordersSelfTest.run()
         #endif
     }
 

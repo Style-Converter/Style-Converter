@@ -58,6 +58,12 @@ import { extractBlendMode } from '../../engine/effects/blend/BlendModeExtractor'
 import { applyBlendMode }   from '../../engine/effects/blend/BlendModeApplier';
 import { extractIsolation } from '../../engine/performance/IsolationExtractor';
 import { applyIsolation }   from '../../engine/performance/IsolationApplier';
+// Phase-5 borders engine — see engine/borders/* and engine/effects/shadow/*.
+// Each triplet folds the relevant IRProperty entries into a typed Config and
+// the Applier emits the native CSS key/value.  47 properties total.
+import { applyBordersPhase5 } from '../../engine/borders/_dispatch';
+import { applyBoxShadow } from '../../engine/effects/shadow/BoxShadowApplier';
+import { extractBoxShadow } from '../../engine/effects/shadow/BoxShadowExtractor';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -97,6 +103,11 @@ export function buildStyles(properties: IRProperty[]): CSSStyles {
   Object.assign(styles, applyBackgroundAttachment(extractBackgroundAttachment(properties)));
   Object.assign(styles, applyBlendMode(extractBlendMode(properties)));
   Object.assign(styles, applyIsolation(extractIsolation(properties)));
+
+  // Phase-5 borders engine — 46 per-side/corner/image/outline/misc
+  // properties plus BoxShadow routed separately.
+  Object.assign(styles, applyBordersPhase5(properties));
+  Object.assign(styles, applyBoxShadow(extractBoxShadow(properties)));
 
   for (const prop of properties) {
     // Skip properties already served by the engine path above.
@@ -322,43 +333,12 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Borders ====================
-    case 'BorderTopWidth':
-    case 'BorderRightWidth':
-    case 'BorderBottomWidth':
-    case 'BorderLeftWidth': {
-      const side = type.replace('Border', 'border').replace('Width', 'Width');
-      const width = extractBorderWidth(data);
-      if (width) styles[side] = width;
-      break;
-    }
-    case 'BorderTopStyle':
-    case 'BorderRightStyle':
-    case 'BorderBottomStyle':
-    case 'BorderLeftStyle': {
-      const side = type.replace('Border', 'border').replace('Style', 'Style');
-      const style = extractKeyword(data);
-      if (style) styles[side] = style.toLowerCase();
-      break;
-    }
-    case 'BorderTopColor':
-    case 'BorderRightColor':
-    case 'BorderBottomColor':
-    case 'BorderLeftColor': {
-      const side = type.replace('Border', 'border').replace('Color', 'Color');
-      const color = extractColor(data);
-      if (color) styles[side] = color;
-      break;
-    }
-    case 'BorderRadius':
-    case 'BorderTopLeftRadius':
-    case 'BorderTopRightRadius':
-    case 'BorderBottomLeftRadius':
-    case 'BorderBottomRightRadius': {
-      const cssProp = type.charAt(0).toLowerCase() + type.slice(1);
-      const radius = extractLength(data);
-      if (radius) styles[cssProp] = radius;
-      break;
-    }
+    // Migrated to engine/borders/* in Phase 5 — all Border*Width/Style/Color,
+    // every BorderRadius variant, BorderImage*, Outline*, BoxShadow,
+    // BoxDecorationBreak, CornerShape, BorderBoundary flow through
+    // applyBordersPhase5 above.  The legacy `BorderRadius` shorthand
+    // (as opposed to the per-corner longhands) is expanded by the Kotlin
+    // CSS parser before it reaches us, so no case here is needed.
 
     // ==================== Typography ====================
     case 'FontSize': {
@@ -486,11 +466,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Box Shadow ====================
-    case 'BoxShadow': {
-      const shadow = extractBoxShadow(data);
-      if (shadow) styles.boxShadow = shadow;
-      break;
-    }
+    // Migrated to engine/effects/shadow/BoxShadow* in Phase 5.
 
     // ==================== Text Shadow ====================
     case 'TextShadow': {
@@ -525,26 +501,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Outline ====================
-    case 'OutlineWidth': {
-      const ow = extractLength(data);
-      if (ow) styles.outlineWidth = ow;
-      break;
-    }
-    case 'OutlineStyle': {
-      const os = extractKeyword(data);
-      if (os) styles.outlineStyle = os.toLowerCase();
-      break;
-    }
-    case 'OutlineColor': {
-      const oc = extractColor(data);
-      if (oc) styles.outlineColor = oc;
-      break;
-    }
-    case 'OutlineOffset': {
-      const oo = extractLength(data);
-      if (oo) styles.outlineOffset = oo;
-      break;
-    }
+    // Migrated to engine/borders/outline/Outline* in Phase 5.
 
     // ==================== Aspect Ratio ====================
     case 'AspectRatio': {
@@ -595,32 +552,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
 
 // ==================== Helper Functions ====================
 
-function extractBorderWidth(data: unknown): string | null {
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    // Check for normalized px value
-    if (typeof obj.px === 'number') return `${obj.px}px`;
-
-    // Check for keyword
-    const keyword = extractKeyword(data);
-    if (keyword) {
-      switch (keyword.toLowerCase()) {
-        case 'thin':
-          return '1px';
-        case 'medium':
-          return '3px';
-        case 'thick':
-          return '5px';
-        default:
-          return keyword;
-      }
-    }
-  }
-
-  const length = extractLength(data);
-  return length;
-}
+// extractBorderWidth removed — now handled by engine/borders/sides/_shared.ts
 
 function extractFontSize(data: unknown): string | null {
   if (typeof data === 'object' && data !== null) {
@@ -895,26 +827,7 @@ function extractSingleTimingFunction(data: unknown): string | null {
   return null;
 }
 
-function extractBoxShadow(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((shadow) => {
-        const s = shadow as Record<string, unknown>;
-        const inset = s.inset ? 'inset ' : '';
-        const x = extractLength(s.x) || '0';
-        const y = extractLength(s.y) || '0';
-        const blur = extractLength(s.blur) || '0';
-        const spread = extractLength(s.spread) || '0';
-        const color = extractColor(s.c) || extractColor(s.color) || 'rgba(0,0,0,0.25)';
-        return `${inset}${x} ${y} ${blur} ${spread} ${color}`;
-      })
-      .join(', ');
-  }
-
-  return null;
-}
+// Legacy extractBoxShadow removed — now handled by engine/effects/shadow/BoxShadow*
 
 function extractTextShadow(data: unknown): string | null {
   if (typeof data === 'string') return data;

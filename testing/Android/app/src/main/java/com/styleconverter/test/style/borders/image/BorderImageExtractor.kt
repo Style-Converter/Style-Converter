@@ -1,5 +1,6 @@
 package com.styleconverter.test.style.borders.image
 
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -11,6 +12,18 @@ import kotlinx.serialization.json.jsonPrimitive
  * Extracts border-image configuration from IR properties.
  */
 object BorderImageExtractor {
+
+    init {
+        // The 5 CSS border-image longhands (source / slice / width / outset /
+        // repeat). The applier is a Composable (BorderImageBox) rather than
+        // a Modifier, so the legacy dispatch still has to route to it — we
+        // register them here only so the coverage report knows they're owned.
+        PropertyRegistry.migrated(
+            "BorderImageSource", "BorderImageSlice", "BorderImageWidth",
+            "BorderImageOutset", "BorderImageRepeat",
+            owner = "borders/image"
+        )
+    }
 
     /**
      * Extract complete border-image configuration from property pairs.

@@ -25,11 +25,10 @@ struct ColorApplier: ViewModifier {
     // — body hits the identity branch and the modifier is a zero-cost
     // wrapper.
     let config: ColorConfig?
-    // Phase 4 bridge: the existing BorderConfig carries corner radii we
-    // need to clip the `.background(...)` to. Optional so callers can
-    // pass `nil` (tests, fixtures without borders). When absent we
-    // paint a plain rectangle.
-    let border: BorderConfig?
+    // Phase 5: corner radii come from the engine-side BorderRadiusConfig
+    // (StyleEngine/borders/radius). Nil when the IR has no radius
+    // property — background paints a plain rectangle in that case.
+    let radius: BorderRadiusConfig?
 
     func body(content: Content) -> some View {
         // Fast path: nothing to paint at all.
@@ -44,20 +43,12 @@ struct ColorApplier: ViewModifier {
             return AnyView(content)
         }
 
-        // Rounded-corner aware painting — mirrors the legacy
-        // BackgroundModifier behaviour so the switch-over is pixel
-        // equivalent for existing fixtures. When no border radius is
-        // configured we use `.background(Color)` (cheapest path).
-        if let b = border, b.hasAnyRadius {
-            let r: CGFloat = b.hasUniformRadius
-                ? b.uniformRadius
-                : max(b.topLeftRadius, b.topRightRadius,
-                      b.bottomLeftRadius, b.bottomRightRadius)
+        // Rounded-corner aware painting — uses the same BorderRadiusShape
+        // the Phase 5 radius applier clips to, so the fill aligns pixel-
+        // for-pixel with the stroke.
+        if let r = radius, r.hasAny {
             return AnyView(
-                content.background(
-                    RoundedRectangle(cornerRadius: r, style: .continuous)
-                        .fill(swiftColor)
-                )
+                content.background(BorderRadiusShape(radius: r).fill(swiftColor))
             )
         }
         // Plain rectangle path.
@@ -70,10 +61,10 @@ struct ColorApplier: ViewModifier {
 // so the render chain stays flat.
 extension View {
     // Chain helper. Mirrors `.engineSpacingPadding` in the spacing module.
-    // `border` carries corner radii (shared with BorderModifier) so the
-    // background paints inside rounded corners exactly once.
+    // `radius` is the engine-side corner config so the background paints
+    // inside rounded corners without duplicating the Shape.
     func engineBackgroundColor(_ config: ColorConfig?,
-                               border: BorderConfig? = nil) -> some View {
-        modifier(ColorApplier(config: config, border: border))
+                               radius: BorderRadiusConfig? = nil) -> some View {
+        modifier(ColorApplier(config: config, radius: radius))
     }
 }

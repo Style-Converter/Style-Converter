@@ -1,5 +1,6 @@
 package com.styleconverter.test.style.effects.shadow
 
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonElement
 
@@ -29,6 +30,16 @@ import kotlinx.serialization.json.JsonElement
  * ```
  */
 object ShadowExtractor {
+
+    init {
+        // BoxShadow (and TextShadow for typography) — claim them so the
+        // legacy dispatch defers to the effects/shadow appliers. BoxShadow
+        // is the border-category's only non-border-folder dependency.
+        PropertyRegistry.migrated(
+            "BoxShadow", "TextShadow",
+            owner = "effects/shadow"
+        )
+    }
 
     /**
      * Extract shadow configuration from a list of property type/data pairs.

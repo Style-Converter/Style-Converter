@@ -34,6 +34,25 @@ export const migratedProperties = new Set<string>([
   'BackgroundPosition', 'BackgroundPositionX', 'BackgroundPositionY',
   'BackgroundRepeat', 'BackgroundClip', 'BackgroundOrigin', 'BackgroundAttachment',
   'MixBlendMode', 'BackgroundBlendMode', 'Isolation',
+  // Borders — Phase 5 migration. See engine/borders/* and engine/effects/shadow/BoxShadow*.
+  // Sides (24): width/style/color for 4 physical + 4 logical edges.
+  'BorderTopWidth', 'BorderRightWidth', 'BorderBottomWidth', 'BorderLeftWidth',
+  'BorderBlockStartWidth', 'BorderBlockEndWidth', 'BorderInlineStartWidth', 'BorderInlineEndWidth',
+  'BorderTopStyle', 'BorderRightStyle', 'BorderBottomStyle', 'BorderLeftStyle',
+  'BorderBlockStartStyle', 'BorderBlockEndStyle', 'BorderInlineStartStyle', 'BorderInlineEndStyle',
+  'BorderTopColor', 'BorderRightColor', 'BorderBottomColor', 'BorderLeftColor',
+  'BorderBlockStartColor', 'BorderBlockEndColor', 'BorderInlineStartColor', 'BorderInlineEndColor',
+  // Radius (8): 4 physical corners + 4 logical corners.
+  'BorderTopLeftRadius', 'BorderTopRightRadius', 'BorderBottomRightRadius', 'BorderBottomLeftRadius',
+  'BorderStartStartRadius', 'BorderStartEndRadius', 'BorderEndStartRadius', 'BorderEndEndRadius',
+  // Image (5): Source / Slice / Width / Outset / Repeat.
+  'BorderImageSource', 'BorderImageSlice', 'BorderImageWidth', 'BorderImageOutset', 'BorderImageRepeat',
+  // Outline (4): Width / Style / Color / Offset.
+  'OutlineWidth', 'OutlineStyle', 'OutlineColor', 'OutlineOffset',
+  // Shadow (1): BoxShadow mirrored under engine/effects/shadow/.
+  'BoxShadow',
+  // Misc (3): BoxDecorationBreak / CornerShape / BorderBoundary.
+  'BoxDecorationBreak', 'CornerShape', 'BorderBoundary',
 ]);
 
 /**

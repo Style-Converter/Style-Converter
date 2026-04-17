@@ -3,6 +3,7 @@ package com.styleconverter.test.style.borders.outline
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonElement
 
@@ -24,6 +25,16 @@ import kotlinx.serialization.json.JsonElement
  * ```
  */
 object OutlineExtractor {
+
+    init {
+        // CSS outline is distinct from border: drawn outside the box and
+        // doesn't affect layout. Registered so the legacy dispatch skips
+        // these — the OutlineApplier is the only code that should paint them.
+        PropertyRegistry.migrated(
+            "OutlineWidth", "OutlineStyle", "OutlineColor", "OutlineOffset",
+            owner = "borders/outline"
+        )
+    }
 
     /**
      * Extract outline configuration from a list of property type/data pairs.

@@ -48,52 +48,11 @@ struct SpacingConfig {
     var context: SpacingContext = SpacingContext()
 }
 
-struct BorderConfig {
-    var topWidth: CGFloat = 0
-    var rightWidth: CGFloat = 0
-    var bottomWidth: CGFloat = 0
-    var leftWidth: CGFloat = 0
-
-    var topColor: Color?    = nil
-    var rightColor: Color?  = nil
-    var bottomColor: Color? = nil
-    var leftColor: Color?   = nil
-
-    var topLeftRadius: CGFloat     = 0
-    var topRightRadius: CGFloat    = 0
-    var bottomRightRadius: CGFloat = 0
-    var bottomLeftRadius: CGFloat  = 0
-
-    /// True when every side uses the same width & color — lets us use a simple stroke.
-    var isUniform: Bool {
-        topWidth == rightWidth && rightWidth == bottomWidth && bottomWidth == leftWidth
-            && topColor == rightColor && rightColor == bottomColor && bottomColor == leftColor
-    }
-
-    var uniformWidth: CGFloat { topWidth }
-    var uniformColor: Color?  { topColor }
-
-    /// True when all four corner radii are the same.
-    var hasUniformRadius: Bool {
-        topLeftRadius == topRightRadius &&
-        topRightRadius == bottomRightRadius &&
-        bottomRightRadius == bottomLeftRadius
-    }
-
-    var uniformRadius: CGFloat { topLeftRadius }
-
-    var hasAnyRadius: Bool {
-        topLeftRadius != 0 || topRightRadius != 0 ||
-        bottomRightRadius != 0 || bottomLeftRadius != 0
-    }
-
-    var hasAnyBorder: Bool {
-        (topWidth != 0 && topColor != nil) ||
-        (rightWidth != 0 && rightColor != nil) ||
-        (bottomWidth != 0 && bottomColor != nil) ||
-        (leftWidth != 0 && leftColor != nil)
-    }
-}
+// Phase 5: the legacy BorderConfig is gone. Border sides, radius,
+// outline, border-image, BoxShadow, and the keyword-only miscellanies
+// are produced by the engine extractors under StyleEngine/borders/ and
+// StyleEngine/effects/shadow/. ComponentStyle now carries the engine
+// configs directly (see the Phase 5 block below).
 
 struct TextConfig {
     var color: Color?            = nil
@@ -111,6 +70,10 @@ struct EffectConfig {
     var opacity: CGFloat?   = nil
     var rotation: CGFloat?  = nil  // degrees
     var scale: CGFloat?     = nil
+    // Phase 5: BoxShadow moved to StyleEngine/effects/shadow. The legacy
+    // fields below are intentionally kept as `nil` defaults so the
+    // EffectsModifier's ShadowMod short-circuits — the paint now runs
+    // through BoxShadowApplier.
     var shadowColor: Color? = nil
     var shadowRadius: CGFloat? = nil
     var shadowX: CGFloat    = 0
@@ -123,10 +86,19 @@ struct ComponentStyle {
     var layout: LayoutConfig    = LayoutConfig()
     var size: SizeConfig        = SizeConfig()
     var spacing: SpacingConfig  = SpacingConfig()
-    var border: BorderConfig    = BorderConfig()
     var text: TextConfig        = TextConfig()
     var effect: EffectConfig    = EffectConfig()
     var backgroundColor: Color? = nil
+
+    // Phase 5 — border family engine configs. Each is nil when the IR
+    // carried no matching property, which lets every applier short-
+    // circuit to identity.
+    var borderSides: AllBordersConfig?    = nil
+    var borderRadius: BorderRadiusConfig? = nil
+    var borderImage: BorderImageConfig?   = nil
+    var outline: OutlineConfig?           = nil
+    var boxShadow: BoxShadowConfig?       = nil
+    var borderMisc: BorderMiscConfig?     = nil
 
     // Phase 4 — colour + background + blend + isolation family outputs.
     // All optional: nil means "no matching property in IR" so the
@@ -194,6 +166,17 @@ enum StyleBuilder {
         s.blend                = BlendModeExtractor.extract(from: properties)
         s.isolation            = IsolationExtractor.extract(from: properties)
 
+        // Phase 5 — border family. Every extractor returns nil when no
+        // matching property appears in the IR, so the appliers below
+        // short-circuit cleanly. All owned property names live in
+        // PropertyRegistry.migrated so the legacy switch skips them.
+        s.borderSides  = BorderSideExtractor.extract(from: properties)
+        s.borderRadius = BorderRadiusExtractor.extract(from: properties)
+        s.outline      = OutlineExtractor.extract(from: properties)
+        s.borderImage  = BorderImageExtractor.extract(from: properties)
+        s.boxShadow    = BoxShadowExtractor.extract(from: properties)
+        s.borderMisc   = BorderMiscExtractor.extract(from: properties)
+
         // Compatibility bridge — ComponentRenderer reads `text.color`
         // and `backgroundColor` directly (PlaceholderLabel uses the
         // latter to pick a contrasting text colour). Mirror the Phase 4
@@ -231,27 +214,11 @@ enum StyleBuilder {
             // listed in PropertyRegistry.migrated and never hit this
             // switch.
 
-            // ── Borders: widths ─────────────────────────────────────────
-            case "BorderTopWidth":    s.border.topWidth    = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderRightWidth":  s.border.rightWidth  = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderBottomWidth": s.border.bottomWidth = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderLeftWidth":   s.border.leftWidth   = ValueExtractors.extractPx(prop.data) ?? 0
-
-            // ── Borders: colors ─────────────────────────────────────────
-            case "BorderTopColor":    s.border.topColor    = ValueExtractors.extractColor(prop.data)
-            case "BorderRightColor":  s.border.rightColor  = ValueExtractors.extractColor(prop.data)
-            case "BorderBottomColor": s.border.bottomColor = ValueExtractors.extractColor(prop.data)
-            case "BorderLeftColor":   s.border.leftColor   = ValueExtractors.extractColor(prop.data)
-
-            // ── Borders: radius ─────────────────────────────────────────
-            case "BorderTopLeftRadius", "BorderStartStartRadius":
-                s.border.topLeftRadius     = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderTopRightRadius", "BorderStartEndRadius":
-                s.border.topRightRadius    = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderBottomRightRadius", "BorderEndEndRadius":
-                s.border.bottomRightRadius = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderBottomLeftRadius", "BorderEndStartRadius":
-                s.border.bottomLeftRadius  = ValueExtractors.extractPx(prop.data) ?? 0
+            // ── Borders ── migrated to StyleEngine/borders (Phase 5).
+            // Sides, radius, outline, border-image, misc keywords, and
+            // BoxShadow now flow through dedicated extractors above. Every
+            // property name is in PropertyRegistry.migrated so the guard
+            // at the top of the loop already skipped them.
 
             // ── Typography ──────────────────────────────────────────────
             case "FontSize":
@@ -304,8 +271,9 @@ enum StyleBuilder {
                 s.effect.rotation = ValueExtractors.extractDegrees(prop.data)
             case "Scale":
                 s.effect.scale = ValueExtractors.extractFloat(prop.data)
-            case "BoxShadow":
-                applyBoxShadow(prop.data, to: &s.effect)
+            // BoxShadow migrated to StyleEngine/effects/shadow (Phase 5).
+            // Handled by BoxShadowExtractor above; listed in
+            // PropertyRegistry.migrated.
             case "ZIndex":
                 s.effect.zIndex = ValueExtractors.extractFloat(prop.data).map(Double.init)
 
@@ -371,31 +339,10 @@ enum StyleBuilder {
         }
     }
 
-    /// Box-shadow IR is an array of shadow objects:
-    ///   [ { "x": {"px": 5}, "y": {"px": 5}, "blur": {"px": 10},
-    ///       "c": { "srgb": {...} }, "inset": false, "spread": {"px": 0} } ]
-    /// We pick the first shadow and pull x/y/blur through the length extractor
-    /// (values are wrapped in { "px": ... }, not bare numbers). Color key is
-    /// "c" in this IR flavor; fall back to "color" if present.
-    private static func applyBoxShadow(_ v: IRValue, to effect: inout EffectConfig) {
-        var shadow: [String: IRValue]? = nil
-        switch v {
-        case .array(let arr): shadow = arr.first?.objectValue
-        case .object(let o):  shadow = (o["shadows"]?.arrayValue?.first?.objectValue) ?? o
-        default: break
-        }
-        guard let shadow = shadow else { return }
-
-        // Inset shadows aren't supported by SwiftUI's .shadow(); skip them
-        // rather than render a misleading outset.
-        if shadow["inset"]?.boolValue == true { return }
-
-        effect.shadowX = ValueExtractors.extractPx(shadow["x"] ?? shadow["offsetX"]) ?? 0
-        effect.shadowY = ValueExtractors.extractPx(shadow["y"] ?? shadow["offsetY"]) ?? 0
-        effect.shadowRadius = ValueExtractors.extractPx(shadow["blur"] ?? shadow["blurRadius"]) ?? 0
-        effect.shadowColor = ValueExtractors.extractColor(shadow["c"] ?? shadow["color"])
-            ?? Color.black.opacity(0.25)
-    }
+    // Phase 5: applyBoxShadow removed. BoxShadow is now handled by
+    // BoxShadowExtractor + BoxShadowApplier under StyleEngine/effects/
+    // shadow — this includes multi-layer composition, inset shadows,
+    // and spread (all of which the legacy helper silently dropped).
 }
 
 // MARK: - View modifier
@@ -424,14 +371,23 @@ extension View {
             //      chain for future non-identity implementations.
             //   4. BackgroundPosition: stub today.
             .engineBackgroundImage(style.backgroundImage)
-            .engineBackgroundColor(style.color, border: style.border)
+            .engineBackgroundColor(style.color, radius: style.borderRadius)
             .engineBackgroundClip(style.backgroundClip)
             .engineBackgroundOrigin(style.backgroundOrigin)
             .engineBackgroundRepeat(style.backgroundRepeat)
             .engineBackgroundAttachment(style.backgroundAttachment)
             .engineBackgroundSize(style.backgroundSize)
             .engineBackgroundPosition(style.backgroundPosition)
-            .modifier(BorderModifier(border: style.border))
+            // Phase 5 — border family. Order: image (bottom) → radius
+            // clip → sides stroke → outline (outside box) → shadow
+            // (stacked outside). BoxShadow comes last so `.shadow(...)`
+            // stacks on the fully-painted element.
+            .engineBorderImage(style.borderImage)
+            .engineBorderRadius(style.borderRadius)
+            .engineBorderSides(style.borderSides, radius: style.borderRadius)
+            .engineOutline(style.outline, radius: style.borderRadius)
+            .engineBorderMisc(style.borderMisc)
+            .engineBoxShadow(style.boxShadow, radius: style.borderRadius)
             // Phase 4 — blend / isolation / opacity. `.blendMode`
             // applies to the whole element (including already-painted
             // backgrounds) so it must come after the paint chain.
@@ -461,28 +417,10 @@ extension View {
 // no longer wired to a modifier; it's kept as a compatibility mirror
 // with .text.color for consumers that read it directly.
 
-private struct BorderModifier: ViewModifier {
-    let border: BorderConfig
-    func body(content: Content) -> some View {
-        if border.isUniform && border.hasAnyBorder,
-           let color = border.uniformColor, border.uniformWidth > 0 {
-            if border.hasAnyRadius {
-                content.overlay(
-                    roundedShape(border).stroke(color, lineWidth: border.uniformWidth)
-                )
-            } else {
-                content.overlay(
-                    Rectangle().stroke(color, lineWidth: border.uniformWidth)
-                )
-            }
-        } else if border.hasAnyRadius {
-            // Still apply corner radius clipping even without borders
-            content.clipShape(roundedShape(border))
-        } else {
-            content
-        }
-    }
-}
+// Phase 5: BorderModifier removed. Border sides, radius, outline,
+// border-image, BoxShadow, and the keyword-only miscellanies now paint
+// through StyleEngine/borders and StyleEngine/effects/shadow — wired
+// via the `.engineBorder*` chain in `applyStyle` above.
 
 private struct EffectsModifier: ViewModifier {
     let effect: EffectConfig
@@ -491,7 +429,7 @@ private struct EffectsModifier: ViewModifier {
             .modifier(OpacityMod(value: effect.opacity))
             .modifier(RotationMod(value: effect.rotation))
             .modifier(ScaleMod(value: effect.scale))
-            .modifier(ShadowMod(effect: effect))
+            // ShadowMod no longer fires — BoxShadow is the new engine path.
             .modifier(ZIndexMod(value: effect.zIndex))
     }
 }
@@ -517,21 +455,7 @@ private struct ScaleMod: ViewModifier {
     }
 }
 
-private struct ShadowMod: ViewModifier {
-    let effect: EffectConfig
-    func body(content: Content) -> some View {
-        if let radius = effect.shadowRadius, radius > 0 || effect.shadowColor != nil {
-            content.shadow(
-                color: effect.shadowColor ?? .black.opacity(0.25),
-                radius: radius,
-                x: effect.shadowX,
-                y: effect.shadowY
-            )
-        } else {
-            content
-        }
-    }
-}
+// Phase 5: ShadowMod removed — BoxShadowApplier owns the paint now.
 
 private struct ZIndexMod: ViewModifier {
     let value: Double?
@@ -540,15 +464,7 @@ private struct ZIndexMod: ViewModifier {
     }
 }
 
-// Shared shape helper — uses a single uniform radius when all four corners match,
-// or the largest-matching RoundedRectangle otherwise (best-effort; mixed radii
-// would need a custom Shape).
-private func roundedShape(_ b: BorderConfig) -> some Shape {
-    let r: CGFloat
-    if b.hasUniformRadius {
-        r = b.uniformRadius
-    } else {
-        r = max(b.topLeftRadius, b.topRightRadius, b.bottomLeftRadius, b.bottomRightRadius)
-    }
-    return RoundedRectangle(cornerRadius: r, style: .continuous)
-}
+// Phase 5: the shared `roundedShape(_:)` helper was replaced by
+// `BorderRadiusShape` under StyleEngine/borders/radius — it honours
+// per-corner elliptical radii, which the old RoundedRectangle helper
+// couldn't express.

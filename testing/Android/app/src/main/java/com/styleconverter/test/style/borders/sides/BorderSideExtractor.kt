@@ -2,6 +2,7 @@ package com.styleconverter.test.style.borders.sides
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonElement
 
@@ -10,6 +11,29 @@ import kotlinx.serialization.json.JsonElement
  * Handles both shorthand (border-width) and individual side properties.
  */
 object BorderSideExtractor {
+
+    init {
+        // Claim every physical + logical border-side property so the
+        // legacy dispatch knows we own them. Categories:
+        //   * shorthand (BorderWidth/Color/Style)
+        //   * physical sides (Top/Right/Bottom/Left × Width/Color/Style)
+        //   * logical sides (BlockStart/BlockEnd/InlineStart/InlineEnd × …)
+        // CSS spec: https://drafts.csswg.org/css-backgrounds-3/#borders
+        //           https://drafts.csswg.org/css-logical/#border-properties
+        PropertyRegistry.migrated(
+            "BorderWidth", "BorderColor", "BorderStyle",
+            "BorderTopWidth", "BorderRightWidth", "BorderBottomWidth", "BorderLeftWidth",
+            "BorderTopColor", "BorderRightColor", "BorderBottomColor", "BorderLeftColor",
+            "BorderTopStyle", "BorderRightStyle", "BorderBottomStyle", "BorderLeftStyle",
+            "BorderBlockStartWidth", "BorderBlockEndWidth",
+            "BorderInlineStartWidth", "BorderInlineEndWidth",
+            "BorderBlockStartColor", "BorderBlockEndColor",
+            "BorderInlineStartColor", "BorderInlineEndColor",
+            "BorderBlockStartStyle", "BorderBlockEndStyle",
+            "BorderInlineStartStyle", "BorderInlineEndStyle",
+            owner = "borders/sides"
+        )
+    }
 
     /**
      * Extract border configuration from a list of property type/data pairs.
