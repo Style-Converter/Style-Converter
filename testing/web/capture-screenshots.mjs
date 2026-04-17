@@ -89,8 +89,14 @@ try {
   await page.evaluate(() =>
     document.fonts?.ready ?? Promise.resolve()
   );
+  // Brief post-render settle. We can't use requestAnimationFrame here —
+  // headless Chrome throttles (and in some versions outright suppresses)
+  // RAF callbacks when the page isn't actually being painted to a display,
+  // which makes an `await page.evaluate(() => new Promise(r => rAF(r)))`
+  // hang until the protocol timeout fires. setTimeout stays on the JS
+  // task queue and is not throttled the same way.
   await page.evaluate(() =>
-    new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+    new Promise((r) => setTimeout(r, 50))
   );
 
   // ── Capture ────────────────────────────────────────────────────────────────
@@ -118,10 +124,12 @@ try {
       continue;
     }
 
-    // Scroll into view so element-level screenshots see the final layout.
-    await handle.evaluate((el) =>
-      el.scrollIntoView({ block: 'center', behavior: 'instant' })
-    );
+    // `elementHandle.screenshot()` auto-scrolls the target into the
+    // viewport before capture, so an explicit `scrollIntoView` isn't
+    // required — and the old approach (`handle.evaluate(el =>
+    // el.scrollIntoView(...))`) was hanging under newer headless-Chrome
+    // because scroll+layout callbacks are paint-gated and paint is
+    // throttled when no display is attached.
     await handle.screenshot({ path: resolve(outDir, filename), omitBackground: false });
     await handle.dispose();
     captured += 1;

@@ -10,6 +10,14 @@ import SwiftUI
 
 @main
 struct StyleConverterTestApp: App {
+    // Phase 1 primitive extractor self-test. DEBUG-only — zero release cost.
+    // See testing/iOS/StyleConverterTest/StyleEngine/core/types/CoreTypesSelfTest.swift
+    init() {
+        #if DEBUG
+        CoreTypesSelfTest.run()
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
