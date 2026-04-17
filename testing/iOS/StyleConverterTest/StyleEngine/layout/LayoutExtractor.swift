@@ -154,11 +154,29 @@ enum LayoutExtractor {
     /// (StyleBuilder / ComponentRenderer) can be wired in step 2 without
     /// churn.
     static func extract(from properties: [IRProperty]) -> LayoutAggregate? {
-        // Silence the unused-parameter warning without changing the public
-        // signature. Real work lands in steps 2-5.
-        _ = properties
-        // STEP 1: identity behaviour — callers get nil, legacy StyleBuilder
-        // continues to render these properties exactly as today.
-        return nil
+        // Start with an empty aggregate; each sub-extractor folds in
+        // its own fields and flips `touched` when it writes.
+        var agg = LayoutAggregate()
+
+        // Step 2 — flexbox family. 11 properties are read
+        // here; BoxOrient is intentionally skipped per task brief.
+        FlexboxExtractor.extract(from: properties, into: &agg)
+
+        // Step 3 — grid family (GridTemplate*/GridAuto*/GridArea +
+        // JustifyItems/JustifySelf). Writes tracks/areas/flow/placement
+        // into the aggregate's grid-* slots.
+        GridExtractor.contribute(properties, into: &agg)
+
+        // Step 4 — position family (Position/Top/Right/Bottom/Left +
+        // InsetBlock*/InsetInline* + ZIndex). Resolves logical insets
+        // to physical sides against the default (LTR) layout direction.
+        PositionExtractor.contribute(properties, into: &agg)
+
+        // Steps 5 (advanced / root) plug in next to this call —
+        // parallel agents own those scopes.
+
+        // Return nil when nothing wrote — lets LayoutApplier short-
+        // circuit and leaves the renderer's legacy fallback untouched.
+        return agg.touched ? agg : nil
     }
 }

@@ -187,6 +187,15 @@ object ComponentRenderer {
             null
         }
 
+        // Phase 7b: unpack any FlexDecision the style engine produced. When
+        // present, RenderComponentContent takes a dedicated flex branch that
+        // uses engine-computed Arrangement / Alignment instead of the
+        // legacy DisplayConfig path. When absent (null), the legacy path
+        // still runs unchanged — preserves zero-behavioural-change for
+        // every component that doesn't set display:flex.
+        val flexDecision = engineDecision.arrangement
+            as? com.styleconverter.test.style.layout.flexbox.FlexDecision
+
         // Wrap content with direction if not default LTR
         val content: @Composable () -> Unit = {
             // Wrap in BorderImageBox if border image is configured
@@ -195,10 +204,10 @@ object ComponentRenderer {
                     config = borderImageConfig,
                     modifier = modifier
                 ) {
-                    RenderComponentContent(component, Modifier, displayConfig, textColor)
+                    RenderComponentContent(component, Modifier, displayConfig, textColor, engineDecision, flexDecision)
                 }
             } else {
-                RenderComponentContent(component, modifier, displayConfig, textColor)
+                RenderComponentContent(component, modifier, displayConfig, textColor, engineDecision, flexDecision)
             }
         }
 
@@ -267,8 +276,75 @@ object ComponentRenderer {
         component: IRComponent,
         modifier: Modifier,
         displayConfig: DisplayConfig,
-        textColor: Color?
+        textColor: Color?,
+        engineDecision: com.styleconverter.test.style.layout.ContainerDecision =
+            com.styleconverter.test.style.layout.ContainerDecision.default,
+        flexDecision: com.styleconverter.test.style.layout.flexbox.FlexDecision? = null
     ) {
+        // Phase 7b engine-driven flex branch. Only activates when the
+        // style-engine produced a FlexDecision; falls through to the legacy
+        // displayConfig switch otherwise.
+        if (engineDecision.kind == com.styleconverter.test.style.layout.ContainerKind.None) {
+            // display: none — suppress rendering entirely.
+            return
+        }
+        if (flexDecision != null &&
+            engineDecision.kind == com.styleconverter.test.style.layout.ContainerKind.Flex
+        ) {
+            // Re-use legacy gap extraction — gap isn't owned by the flex
+            // sub-config yet (TODO phase7/step5 folds spacing into LayoutConfig).
+            val rowGap = displayConfig.rowGap
+            val columnGap = displayConfig.columnGap
+            when (flexDecision.kind) {
+                com.styleconverter.test.style.layout.flexbox.FlexContainerKind.Row -> {
+                    Row(
+                        modifier = modifier,
+                        horizontalArrangement = if (columnGap > 0.dp)
+                            Arrangement.spacedBy(columnGap)
+                        else flexDecision.horizontalArrangement,
+                        verticalAlignment = flexDecision.verticalAlignment
+                    ) {
+                        RenderRowContent(component, textColor)
+                    }
+                    return
+                }
+                com.styleconverter.test.style.layout.flexbox.FlexContainerKind.Column -> {
+                    Column(
+                        modifier = modifier,
+                        verticalArrangement = if (rowGap > 0.dp)
+                            Arrangement.spacedBy(rowGap)
+                        else flexDecision.verticalArrangement,
+                        horizontalAlignment = flexDecision.horizontalAlignment
+                    ) {
+                        RenderColumnContent(component, textColor)
+                    }
+                    return
+                }
+                com.styleconverter.test.style.layout.flexbox.FlexContainerKind.FlowRow -> {
+                    FlowRow(
+                        modifier = modifier,
+                        horizontalArrangement = flexDecision.horizontalArrangement,
+                        verticalArrangement = Arrangement.spacedBy(rowGap)
+                    ) {
+                        RenderContent(component, textColor, displayConfig)
+                    }
+                    return
+                }
+                com.styleconverter.test.style.layout.flexbox.FlexContainerKind.FlowColumn -> {
+                    FlowColumn(
+                        modifier = modifier,
+                        verticalArrangement = flexDecision.verticalArrangement,
+                        horizontalArrangement = Arrangement.spacedBy(columnGap)
+                    ) {
+                        RenderContent(component, textColor, displayConfig)
+                    }
+                    return
+                }
+                // Box / None already handled above (None) or fall through to
+                // the legacy switch below (Box).
+                else -> Unit
+            }
+        }
         when (displayConfig.type) {
             DisplayType.NONE -> {
                 // Don't render anything

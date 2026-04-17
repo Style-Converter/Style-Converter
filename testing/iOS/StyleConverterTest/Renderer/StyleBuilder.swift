@@ -105,6 +105,13 @@ struct ComponentStyle {
     // the applyStyle chain below.
     var typography: TypographyAggregate? = nil
 
+    // Phase 7 step 2 — layout aggregate. Populated by LayoutExtractor
+    // (flexbox sub-step owns the 11 flex properties). Consumed by
+    // ComponentRenderer up front for container-kind selection; is not
+    // wired through the modifier chain (SwiftUI stack constructors
+    // take config, not modifiers).
+    var layout7: LayoutAggregate? = nil
+
     // Phase 4 — colour + background + blend + isolation family outputs.
     // All optional: nil means "no matching property in IR" so the
     // corresponding applier short-circuits to identity.
@@ -188,6 +195,27 @@ enum StyleBuilder {
         // name (including the "unsupported" groups) is in
         // PropertyRegistry.migrated so the legacy switch below skips them.
         s.typography = TypographyExtractor.extract(from: properties)
+
+        // Phase 7 step 2 — layout aggregate (flexbox sub-step). The
+        // 11 flex properties are listed in `LayoutFlexboxProperty.set`
+        // and included in `PropertyRegistry.migrated` so the legacy
+        // switch below skips them. `layout7` stays nil when no flex
+        // property touched the aggregate, preserving legacy fallback
+        // behaviour for grid/position/etc. until those sub-steps land.
+        s.layout7 = LayoutExtractor.extract(from: properties)
+        // Compatibility bridge — mirror the flex aggregate into the
+        // legacy `layout` config so any code paths still reading it
+        // (PlaceholderLabel via style.layout.display for .none short-
+        // circuit, GapApplier lookup) keep working. Only mirror fields
+        // the legacy LayoutConfig actually carries.
+        if let agg = s.layout7 {
+            if let disp = agg.display {
+                s.layout.display = legacyDisplay(disp, direction: agg.flexDirection)
+            }
+            if let j = agg.justifyContent { s.layout.justify = legacyJustify(j) }
+            if let a = agg.alignItems      { s.layout.align = legacyAlign(a) }
+            if let w = agg.flexWrap        { s.layout.wrap = legacyWrap(w) }
+        }
         // Compatibility bridge for PlaceholderLabel in ComponentRenderer,
         // which still reads `style.text.fontSize / fontWeight / italic /
         // textAlign` directly. Mirror the aggregate's values so preview
@@ -255,28 +283,13 @@ enum StyleBuilder {
             // All owned names live in PropertyRegistry.migrated so the
             // guard at the top of the loop already skipped them.
 
-            // ── Layout / display ────────────────────────────────────────
-            case "Display":
-                let kw = ValueExtractors.normalize(ValueExtractors.extractKeyword(prop.data))
-                switch kw {
-                case "FLEX", "INLINE_FLEX":           s.layout.display = .flexRow
-                case "GRID":                          s.layout.display = .grid
-                case "INLINE", "INLINE_BLOCK":        s.layout.display = .inline
-                case "NONE":                          s.layout.display = .none
-                default:                              s.layout.display = .block
-                }
-            case "FlexDirection":
-                let kw = ValueExtractors.normalize(ValueExtractors.extractKeyword(prop.data))
-                if (kw == "COLUMN" || kw == "COLUMN_REVERSE") && s.layout.display == .flexRow {
-                    s.layout.display = .flexColumn
-                }
-            case "JustifyContent":
-                s.layout.justify = parseJustify(prop.data)
-            case "AlignItems":
-                s.layout.align = parseAlign(prop.data)
-            case "FlexWrap":
-                let kw = ValueExtractors.normalize(ValueExtractors.extractKeyword(prop.data))
-                s.layout.wrap = (kw == "WRAP") ? .wrap : (kw == "WRAP_REVERSE") ? .wrapReverse : .noWrap
+            // ── Layout / display ── migrated to StyleEngine/layout
+            // (Phase 7 step 2). Display, FlexDirection, FlexWrap,
+            // JustifyContent, AlignItems now flow through LayoutExtractor
+            // → LayoutAggregate → FlexboxApplier.containerDecision(...),
+            // consumed by ComponentRenderer at container-construction time.
+            // All five names plus the rest of the flex family are in
+            // PropertyRegistry.migrated so they never hit this switch.
             // Gap / RowGap / ColumnGap migrated — see GapExtractor.
 
             // ── Effects ─────────────────────────────────────────────────
@@ -289,8 +302,10 @@ enum StyleBuilder {
             // BoxShadow migrated to StyleEngine/effects/shadow (Phase 5).
             // Handled by BoxShadowExtractor above; listed in
             // PropertyRegistry.migrated.
-            case "ZIndex":
-                s.effect.zIndex = ValueExtractors.extractFloat(prop.data).map(Double.init)
+            // ZIndex migrated to StyleEngine/layout/position (Phase 7
+            // step 4) — handled by PositionExtractor + PositionApplier.
+            // Position / Top / Right / Bottom / Left / InsetBlock* /
+            // InsetInline* were never in this legacy switch.
 
             default:
                 break  // unsupported — silently skip
@@ -305,24 +320,64 @@ enum StyleBuilder {
     // Phase 6: parseFontWeight and parseTextAlign removed — the typography
     // extractors (FontWeightExtractor, TextAlignExtractor) own these parses.
 
-    private static func parseJustify(_ v: IRValue) -> LayoutConfig.Justify {
-        switch ValueExtractors.normalize(ValueExtractors.extractKeyword(v)) {
-        case "CENTER":                return .center
-        case "FLEX_END", "END":       return .flexEnd
-        case "SPACE_BETWEEN":         return .spaceBetween
-        case "SPACE_AROUND":          return .spaceAround
-        case "SPACE_EVENLY":          return .spaceEvenly
-        default:                      return .flexStart
+    // Phase 7 step 2: parseJustify/parseAlign replaced by
+    // FlexboxExtractor.mapAlignment (engine side). The `legacy*`
+    // helpers below translate the engine's AlignmentKeyword back into
+    // the legacy LayoutConfig enums so ComponentRenderer's existing
+    // VerticalAlignment / HorizontalAlignment bridges keep working
+    // until the grid/position sub-steps land and ComponentRenderer
+    // switches over to ContainerDecision wholesale.
+
+    /// Engine DisplayKeyword → legacy LayoutConfig.DisplayType.
+    /// FlexDirection is folded in here so `.flex` + column becomes
+    /// `.flexColumn` — matching the original switch.
+    fileprivate static func legacyDisplay(
+        _ disp: DisplayKeyword,
+        direction: FlexDirectionKeyword?
+    ) -> LayoutConfig.DisplayType {
+        switch disp {
+        case .flex:
+            switch direction {
+            case .column, .columnReverse: return .flexColumn
+            default:                      return .flexRow
+            }
+        case .grid:     return .grid
+        case .inline:   return .inline
+        case .none:     return .none
+        case .contents: return .block  // best-effort approximation
+        case .block:    return .block
         }
     }
 
-    private static func parseAlign(_ v: IRValue) -> LayoutConfig.Align {
-        switch ValueExtractors.normalize(ValueExtractors.extractKeyword(v)) {
-        case "CENTER":                return .center
-        case "FLEX_START", "START":   return .flexStart
-        case "FLEX_END", "END":       return .flexEnd
-        case "BASELINE":              return .baseline
-        default:                      return .stretch
+    /// Engine AlignmentKeyword → legacy LayoutConfig.Justify.
+    fileprivate static func legacyJustify(_ kw: AlignmentKeyword) -> LayoutConfig.Justify {
+        switch kw {
+        case .center:       return .center
+        case .end, .selfEnd: return .flexEnd
+        case .spaceBetween: return .spaceBetween
+        case .spaceAround:  return .spaceAround
+        case .spaceEvenly:  return .spaceEvenly
+        default:            return .flexStart
+        }
+    }
+
+    /// Engine AlignmentKeyword → legacy LayoutConfig.Align.
+    fileprivate static func legacyAlign(_ kw: AlignmentKeyword) -> LayoutConfig.Align {
+        switch kw {
+        case .center:               return .center
+        case .start, .selfStart:    return .flexStart
+        case .end, .selfEnd:        return .flexEnd
+        case .baseline:             return .baseline
+        default:                    return .stretch
+        }
+    }
+
+    /// Engine FlexWrapKeyword → legacy LayoutConfig.Wrap.
+    fileprivate static func legacyWrap(_ kw: FlexWrapKeyword) -> LayoutConfig.Wrap {
+        switch kw {
+        case .wrap:         return .wrap
+        case .wrapReverse:  return .wrapReverse
+        case .nowrap:       return .noWrap
         }
     }
 

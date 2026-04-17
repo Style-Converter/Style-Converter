@@ -9,10 +9,8 @@ import {
   extractColor,
   extractLength,
   extractKeyword,
-  extractFloat,
   extractDegrees,
   extractMs,
-  extractInt,
 } from '../types/ValueExtractors';
 // Phase-2 engine wiring — spacing properties now flow through per-family
 // extractors + appliers instead of the legacy switch below.
@@ -66,6 +64,9 @@ import { applyBoxShadow } from '../../engine/effects/shadow/BoxShadowApplier';
 import { extractBoxShadow } from '../../engine/effects/shadow/BoxShadowExtractor';
 // Phase-6 typography engine — 109 properties (CaretColor migrated in Phase 4).
 import { applyTypographyPhase6 } from '../../engine/typography/_dispatch';
+// Phase-7 layout engine — 55 properties (flexbox, grid, position, advanced
+// anchor + motion-path, plus root flow/top-layer keywords).
+import { applyLayoutPhase7 } from '../../engine/layout/_dispatch';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -113,6 +114,12 @@ export function buildStyles(properties: IRProperty[]): CSSStyles {
 
   // Phase-6 typography engine — single fold handles all 109 typography props.
   Object.assign(styles, applyTypographyPhase6(properties));
+
+  // Phase-7 layout engine — flexbox + grid + position + advanced anchor/
+  // motion-path + flow/top-layer keywords.  Replaces the legacy Display/
+  // Flex*/Justify*/Align*/Grid*/Position/Top/Right/Bottom/Left/ZIndex switch
+  // cases below.
+  Object.assign(styles, applyLayoutPhase7(properties));
 
   for (const prop of properties) {
     // Skip properties already served by the engine path above.
@@ -207,61 +214,9 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Display & Layout ====================
-    case 'Display': {
-      const display = extractKeyword(data);
-      if (display) styles.display = display.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'FlexDirection': {
-      const fd = extractKeyword(data);
-      if (fd) styles.flexDirection = fd.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'FlexWrap': {
-      const fw = extractKeyword(data);
-      if (fw) styles.flexWrap = fw.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'JustifyContent': {
-      const jc = extractKeyword(data);
-      if (jc) styles.justifyContent = jc.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'AlignItems': {
-      const ai = extractKeyword(data);
-      if (ai) styles.alignItems = ai.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'AlignContent': {
-      const ac = extractKeyword(data);
-      if (ac) styles.alignContent = ac.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'AlignSelf': {
-      const as = extractKeyword(data);
-      if (as) styles.alignSelf = as.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'FlexGrow': {
-      const fg = extractFloat(data);
-      if (fg !== null) styles.flexGrow = fg;
-      break;
-    }
-    case 'FlexShrink': {
-      const fs = extractFloat(data);
-      if (fs !== null) styles.flexShrink = fs;
-      break;
-    }
-    case 'FlexBasis': {
-      const fb = extractLength(data);
-      if (fb) styles.flexBasis = fb;
-      break;
-    }
-    case 'Order': {
-      const order = extractInt(data);
-      if (order !== null) styles.order = order;
-      break;
-    }
+    // Display / FlexDirection / FlexWrap / JustifyContent / AlignItems /
+    // AlignContent / AlignSelf / FlexGrow / FlexShrink / FlexBasis / Order
+    // migrated to engine/layout/flexbox/* in Phase 7 (applyLayoutPhase7).
 
     // ==================== Gap ====================
     case 'Gap': {
@@ -281,61 +236,17 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Grid ====================
-    case 'GridTemplateColumns': {
-      styles.gridTemplateColumns = extractGridTemplate(data);
-      break;
-    }
-    case 'GridTemplateRows': {
-      styles.gridTemplateRows = extractGridTemplate(data);
-      break;
-    }
-    case 'GridColumn': {
-      const gc = extractKeyword(data) || extractGridSpan(data);
-      if (gc) styles.gridColumn = gc;
-      break;
-    }
-    case 'GridRow': {
-      const gr = extractKeyword(data) || extractGridSpan(data);
-      if (gr) styles.gridRow = gr;
-      break;
-    }
-    case 'GridArea': {
-      const ga = extractKeyword(data);
-      if (ga) styles.gridArea = ga;
-      break;
-    }
+    // GridTemplateColumns / GridTemplateRows / GridTemplateAreas,
+    // GridAutoColumns / GridAutoRows / GridAutoFlow,
+    // GridColumnStart / GridColumnEnd / GridRowStart / GridRowEnd,
+    // JustifyItems / JustifySelf / AlignTracks / JustifyTracks / MasonryAutoFlow
+    // migrated to engine/layout/grid/* in Phase 7.
+    // The `GridColumn` / `GridRow` / `GridArea` shorthands are expanded by
+    // the Kotlin parser before reaching us, so no legacy case is needed.
 
     // ==================== Position ====================
-    case 'Position': {
-      const pos = extractKeyword(data);
-      if (pos) styles.position = pos.toLowerCase();
-      break;
-    }
-    case 'Top': {
-      const top = extractLength(data);
-      if (top) styles.top = top;
-      break;
-    }
-    case 'Right': {
-      const right = extractLength(data);
-      if (right) styles.right = right;
-      break;
-    }
-    case 'Bottom': {
-      const bottom = extractLength(data);
-      if (bottom) styles.bottom = bottom;
-      break;
-    }
-    case 'Left': {
-      const left = extractLength(data);
-      if (left) styles.left = left;
-      break;
-    }
-    case 'ZIndex': {
-      const z = extractInt(data);
-      if (z !== null) styles.zIndex = z;
-      break;
-    }
+    // Position / Top / Right / Bottom / Left, Inset{Block,Inline}{Start,End},
+    // and ZIndex migrated to engine/layout/position/* in Phase 7.
 
     // ==================== Borders ====================
     // Migrated to engine/borders/* in Phase 5 — all Border*Width/Style/Color,
@@ -505,39 +416,8 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
 // removed in Phase 6 — replaced by the per-property triplets under
 // engine/typography/*.
 
-function extractGridTemplate(data: unknown): string {
-  if (Array.isArray(data)) {
-    return data
-      .map((track) => {
-        if (typeof track === 'object' && track !== null) {
-          const t = track as Record<string, unknown>;
-          if (typeof t.fr === 'number') return `${t.fr}fr`;
-          if (typeof t.px === 'number') return `${t.px}px`;
-          if (typeof t.minmax === 'object') {
-            const mm = t.minmax as Record<string, unknown>;
-            return `minmax(${extractLength(mm.min) || '0'}, ${extractLength(mm.max) || '1fr'})`;
-          }
-        }
-        return extractLength(track) || 'auto';
-      })
-      .join(' ');
-  }
-
-  return extractKeyword(data) || 'none';
-}
-
-function extractGridSpan(data: unknown): string | null {
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    if (typeof obj.start === 'number' && typeof obj.end === 'number') {
-      return `${obj.start} / ${obj.end}`;
-    }
-    if (typeof obj.span === 'number') {
-      return `span ${obj.span}`;
-    }
-  }
-  return null;
-}
+// extractGridTemplate / extractGridSpan removed in Phase 7 — replaced by
+// engine/layout/grid/_grid_shared.ts (trackSize / renderTrackList / gridLine).
 
 function extractTransform(data: unknown): string | null {
   if (typeof data === 'string') return data;

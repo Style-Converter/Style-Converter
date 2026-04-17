@@ -116,9 +116,41 @@ object LayoutExtractor {
      * @return LayoutConfig with all fields null in step 1.
      */
     fun extractLayoutConfig(properties: List<Pair<String, JsonElement?>>): LayoutConfig {
-        // TODO(phase7/step2-5): populate each category from `properties`.
-        // Intentionally ignoring the input in step 1 — every field null means
-        // the legacy rendering path runs unchanged.
-        return LayoutConfig.Empty
+        // Phase 7b step 2: delegate to the flexbox sub-extractor. The flexbox
+        // extractor returns a LayoutConfig with ONLY its owned fields
+        // populated; all grid/position/advanced/root slots stay null. When
+        // later steps ship their own sub-extractors (GridExtractor,
+        // PositionExtractor) they'll merge into this same aggregate via a
+        // copy-based fold — see the TODO below.
+        val flexbox = com.styleconverter.test.style.layout.flexbox.FlexboxExtractor
+            .extract(properties)
+
+        // Phase 7b — fold grid + position sub-extractors into the flexbox
+        // result. Each sub-extractor returns only its own fields populated;
+        // we merge by copying non-null fields onto the aggregate. The
+        // advanced/root extractors will join via the same pattern in a
+        // later step.
+        val g = com.styleconverter.test.style.layout.grid.GridLayoutExtractor.extract(properties)
+        val p = com.styleconverter.test.style.layout.position.PositionLayoutExtractor.extract(properties)
+        return flexbox.copy(
+            gridTemplateColumns = g.templateColumns ?: flexbox.gridTemplateColumns,
+            gridTemplateRows = g.templateRows ?: flexbox.gridTemplateRows,
+            gridTemplateAreas = g.templateAreas ?: flexbox.gridTemplateAreas,
+            gridAutoColumns = g.autoColumns ?: flexbox.gridAutoColumns,
+            gridAutoRows = g.autoRows ?: flexbox.gridAutoRows,
+            gridAutoFlow = g.autoFlow ?: flexbox.gridAutoFlow,
+            gridArea = g.gridArea ?: flexbox.gridArea,
+            gridColumn = g.gridColumn ?: flexbox.gridColumn,
+            gridRow = g.gridRow ?: flexbox.gridRow,
+            // justifyItems/justifySelf are shared with flexbox's JustifyContent
+            // alignment set; if flexbox already claimed them prefer that so a
+            // container that happens to set both gets the flex semantics. In
+            // practice only one code path populates each per component.
+            justifyItems = flexbox.justifyItems ?: g.justifyItems,
+            justifySelf = flexbox.justifySelf ?: g.justifySelf,
+            position = p.position ?: flexbox.position,
+            inset = p.inset ?: flexbox.inset,
+            zIndex = p.zIndex ?: flexbox.zIndex,
+        )
     }
 }

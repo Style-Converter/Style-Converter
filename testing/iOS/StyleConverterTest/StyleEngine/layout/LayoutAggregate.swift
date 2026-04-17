@@ -172,11 +172,35 @@ enum FlexBasisValue: Equatable {
 }
 
 /// One grid track (size entry) in `grid-template-columns` / `-rows`.
-/// Shell — step 3 (grid) will extend this with flexible (fr) and
-/// `minmax` variants.
+/// Step 3 widens this beyond the scaffold's bare `px` to carry every
+/// track variant the CSS parser emits: fr weights, auto, percent,
+/// minmax(a,b), and adaptive (repeat(auto-fill|auto-fit, minmax(...))).
 struct GridTrack: Equatable {
-    /// Absolute track size in points. Nil = `auto` / flexible (TODO).
-    var px: CGFloat?
+    /// Discriminated union of supported track shapes. Kept as a nested
+    /// enum so the applier's switch is exhaustive.
+    enum Kind: Equatable {
+        /// `40px` — absolute fixed size in points.
+        case fixed(px: CGFloat)
+        /// `1fr` / `2fr` — flexible weight, sums across the track list.
+        case flexible(weight: CGFloat)
+        /// `auto` — sized to content. SwiftUI → GridItem(.flexible()).
+        case automatic
+        /// `N%` — percentage of parent width. SwiftUI has no direct
+        /// percent GridItem; applier converts to a fixed size only when
+        /// the parent width is known at render time.
+        case percent(CGFloat)
+        /// `minmax(a, b)` — raw bounds captured. Applier picks the
+        /// closest GridItem (adaptive or flexible).
+        case minmax(min: CGFloat?, max: CGFloat?)
+        /// `repeat(auto-fill|auto-fit, minmax(a, b))` — collapses to
+        /// a single GridItem(.adaptive(minimum: a, maximum: b)).
+        case adaptive(min: CGFloat?, max: CGFloat?)
+    }
+
+    /// The kind of track. Phase 7 step 3 initialises this directly; the
+    /// scaffold used a bare optional `px` field — the `fixed(px:)` case
+    /// is the migration target.
+    var kind: Kind
 }
 
 /// `grid-template-columns` / `grid-template-rows` list. Shell today.
@@ -327,6 +351,9 @@ struct ContainerDecision: Equatable {
         case lazyVGrid
         /// LazyHGrid for row-based grids.
         case lazyHGrid
+        /// iOS 16+ `Grid` / `GridRow` — used for `grid-template-areas`
+        /// layouts which need spanning cells that LazyVGrid can't express.
+        case grid
         /// No container — children rendered inline (display: contents /
         /// display: none short-circuit).
         case none
@@ -338,6 +365,12 @@ struct ContainerDecision: Equatable {
     var alignment: AlignmentKeyword
     /// `gap` / `row-gap` / `column-gap` resolved to points. Nil = default.
     var spacing: CGFloat?
+    /// True when at least one child has `position: absolute | fixed`, which
+    /// forces the parent to be a ZStack(alignment: .topLeading) so the
+    /// child's .offset(...) anchors at the top-left of the parent bounds.
+    /// Phase 7 step 4 — set by the ComponentRenderer after inspecting
+    /// children; PositionApplier.needsZStackWrap(forChildren:) computes it.
+    var needsZStackWrap: Bool = false
 
     /// Safe default used by callers during the scaffold phase: a plain
     /// vertical stack, leading alignment, no explicit spacing. Matches
@@ -345,6 +378,7 @@ struct ContainerDecision: Equatable {
     static let `default` = ContainerDecision(
         kind: .stack(.vertical),
         alignment: .start,
-        spacing: nil
+        spacing: nil,
+        needsZStackWrap: false
     )
 }

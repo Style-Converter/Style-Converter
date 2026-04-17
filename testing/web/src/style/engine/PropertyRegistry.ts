@@ -87,6 +87,27 @@ export const migratedProperties = new Set<string>([
   'UnicodeBidi', 'VerticalAlign', 'VerticalAlignLast',
   'WhiteSpace', 'WhiteSpaceCollapse', 'Widows',
   'WordBreak', 'WordSpaceTransform', 'WordSpacing', 'WordWrap', 'WritingMode',
+  // Layout — Phase 7 migration.  See engine/layout/*.  55 properties covering
+  // flexbox (11), grid (14), position/edges (10), anchor-positioning + motion-
+  // path advanced (16), plus the four root flow/top-layer keywords
+  // (Clear/Float/Overlay/ReadingFlow).  All route through
+  // `applyLayoutPhase7` in engine/layout/_dispatch.ts.
+  'Clear', 'Float', 'Overlay', 'ReadingFlow',
+  'AnchorName', 'AnchorScope', 'InsetArea',
+  'OffsetAnchor', 'OffsetDistance', 'OffsetPath', 'OffsetPosition', 'OffsetRotate',
+  'PositionAnchor', 'PositionArea', 'PositionFallback',
+  'PositionTry', 'PositionTryFallbacks', 'PositionTryOptions', 'PositionTryOrder',
+  'PositionVisibility',
+  'Display', 'FlexDirection', 'FlexWrap', 'FlexBasis', 'FlexGrow', 'FlexShrink',
+  'JustifyContent', 'AlignItems', 'AlignContent', 'AlignSelf', 'Order',
+  'GridTemplateColumns', 'GridTemplateRows', 'GridTemplateAreas',
+  'GridAutoColumns', 'GridAutoRows', 'GridAutoFlow',
+  'GridColumnStart', 'GridColumnEnd', 'GridRowStart', 'GridRowEnd',
+  'JustifyItems', 'JustifySelf',
+  'AlignTracks', 'JustifyTracks', 'MasonryAutoFlow',
+  'Position', 'Top', 'Right', 'Bottom', 'Left',
+  'InsetBlockStart', 'InsetBlockEnd', 'InsetInlineStart', 'InsetInlineEnd',
+  'ZIndex',
 ]);
 
 /**

@@ -146,11 +146,56 @@ sealed class FlexBasisValue {
 
 /**
  * Track list for grid-template-{columns,rows} and grid-auto-{columns,rows}.
- * Sealed to accommodate fixed lengths, `repeat()`, `minmax()`, named lines.
+ *
+ * Phase 7b: replaces step-1 placeholder with a real discriminated union.
+ * The variants intentionally mirror the existing
+ * [com.styleconverter.test.style.layout.grid.GridTrackSize] vocabulary so
+ * downstream legacy code can translate without loss. We keep our own copy
+ * instead of re-exporting GridTrackSize so the `style/layout/` root package
+ * stays decoupled from the `grid/` subpackage (avoids import cycles when the
+ * subpackage references LayoutConfig).
  */
 sealed class GridTrackList {
-    /** Placeholder default for step 1. */
-    object Default : GridTrackList()
+    /** Empty track list — equivalent to "no tracks specified". */
+    data object None : GridTrackList()
+
+    /**
+     * Explicit, ordered list of track sizes. Each entry is a single track.
+     * repeat(N, ...) is already expanded by the extractor. repeat(auto-fill /
+     * auto-fit, ...) yields a singleton [Adaptive] at that position, wrapped
+     * in a single-item [Explicit].
+     */
+    data class Explicit(val tracks: List<Track>) : GridTrackList()
+
+    /**
+     * Single-track adaptive placeholder for repeat(auto-fill|auto-fit, ...).
+     * Compose's [androidx.compose.foundation.lazy.grid.GridCells.Adaptive]
+     * consumes [minSize]; track count is decided at layout time from the
+     * parent width.
+     */
+    data class Adaptive(val minSize: Float, val autoFit: Boolean) : GridTrackList()
+}
+
+/**
+ * Single grid track. A track is a column or row; a track-list contains many.
+ */
+sealed class Track {
+    /** Fixed px length (from absolute CSS length). */
+    data class Fixed(val px: Float) : Track()
+    /** Fractional unit (fr) — share of remaining space. */
+    data class Flexible(val fr: Float) : Track()
+    /** Percentage of container width/height. */
+    data class Percent(val pct: Float) : Track()
+    /** `auto` — size to content. */
+    data object Auto : Track()
+    /** `min-content` / `max-content` keyword. */
+    data class Intrinsic(val kind: IntrinsicKind) : Track()
+    /** minmax(min, max) — captured as-is; resolution is the applier's job. */
+    data class MinMax(val min: Track, val max: Track) : Track()
+    /** fit-content(limit) — like auto, capped at the given px limit. */
+    data class FitContent(val limitPx: Float) : Track()
+
+    enum class IntrinsicKind { MinContent, MaxContent }
 }
 
 /**
@@ -161,17 +206,40 @@ enum class GridAutoFlow {
 }
 
 /**
- * Item placement for grid-area (four-line shorthand). Step 1 default shell.
+ * Item placement for grid-area. CSS grid-area shorthand can be:
+ *   (a) a named area that references grid-template-areas, or
+ *   (b) a four-line shorthand: rowStart / colStart / rowEnd / colEnd.
  */
 sealed class GridPlacement {
-    object Default : GridPlacement()
+    /** No placement — item flows via grid-auto-flow. */
+    data object Auto : GridPlacement()
+    /** Named area referencing grid-template-areas. */
+    data class Named(val name: String) : GridPlacement()
+    /** Explicit line numbers (1-based, matching CSS). */
+    data class Lines(
+        val rowStart: GridLine,
+        val columnStart: GridLine,
+        val rowEnd: GridLine,
+        val columnEnd: GridLine
+    ) : GridPlacement()
 }
 
 /**
- * grid-column / grid-row pair (start + end line). Step 1 default shell.
+ * Single grid line reference. Auto means "let the grid engine place it."
+ * Span(n) means "occupy n tracks starting from the resolved start line."
+ * Line(n) is the 1-based line number (negative indexes from the end).
  */
-sealed class GridLinePair {
-    object Default : GridLinePair()
+sealed class GridLine {
+    data object Auto : GridLine()
+    data class Line(val index: Int) : GridLine()
+    data class Span(val count: Int) : GridLine()
+}
+
+/**
+ * grid-column / grid-row pair (start + end line).
+ */
+data class GridLinePair(val start: GridLine = GridLine.Auto, val end: GridLine = GridLine.Auto) {
+    companion object { val Auto = GridLinePair() }
 }
 
 /**
