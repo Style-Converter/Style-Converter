@@ -146,6 +146,12 @@ enum PropertyRegistry {
     .union(VisibilityProperty.set)
     .union(FilterProperty.set)
     .union(MaskProperty.set)
+    // Phase 9 — animations + transitions + view-timeline + view-transition
+    // + timeline-scope (22 owned names) and the 3 scroll-timeline longhands.
+    // Extractors live at StyleEngine/animations/ and StyleEngine/scrolling/;
+    // appliers are identity in this phase (see AnimationsApplier.swift).
+    .union(AnimationsProperty.set)
+    .union(ScrollTimelineProperty.set)
 
     // MARK: - Query helpers
 

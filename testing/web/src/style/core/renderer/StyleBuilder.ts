@@ -8,7 +8,6 @@ import type { IRProperty } from '../ir/IRModels';
 import {
   extractLength,
   extractKeyword,
-  extractMs,
 } from '../types/ValueExtractors';
 // Phase-2 engine wiring — spacing properties now flow through per-family
 // extractors + appliers instead of the legacy switch below.
@@ -70,6 +69,11 @@ import { applyLayoutPhase7 } from '../../engine/layout/_dispatch';
 import { applyTransformsPhase8 } from '../../engine/transforms/_dispatch';
 import { applyEffectsPhase8 } from '../../engine/effects/_dispatch';
 import { applyVisibilityPhase8 } from '../../engine/visibility/_dispatch';
+// Phase-9 engines — animations + transitions + view-timeline + view-transition
+// (26 props under engine/animations/) and scroll-timeline (3 props under
+// engine/scrolling/).  29 properties total.
+import { applyAnimationsPhase9 } from '../../engine/animations/_dispatch';
+import { applyScrollingPhase9 } from '../../engine/scrolling/_dispatch';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -130,6 +134,12 @@ export function buildStyles(properties: IRProperty[]): CSSStyles {
   Object.assign(styles, applyTransformsPhase8(properties));
   Object.assign(styles, applyEffectsPhase8(properties));
   Object.assign(styles, applyVisibilityPhase8(properties));
+
+  // Phase-9 engines — animations/transitions/view-timeline/view-transition
+  // (26) + scroll-timeline (3).  Replaces the legacy Transition* switch cases
+  // below and brings the previously-missing Animation* family online.
+  Object.assign(styles, applyAnimationsPhase9(properties));
+  Object.assign(styles, applyScrollingPhase9(properties));
 
   for (const prop of properties) {
     // Skip properties already served by the engine path above.
@@ -284,26 +294,13 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     // Migrated to engine/effects/filter/* in Phase 8 (applyEffectsPhase8).
 
     // ==================== Transitions & Animations ====================
-    case 'TransitionProperty': {
-      const tp = extractTransitionProperty(data);
-      if (tp) styles.transitionProperty = tp;
-      break;
-    }
-    case 'TransitionDuration': {
-      const td = extractTransitionDuration(data);
-      if (td) styles.transitionDuration = td;
-      break;
-    }
-    case 'TransitionTimingFunction': {
-      const ttf = extractTimingFunction(data);
-      if (ttf) styles.transitionTimingFunction = ttf;
-      break;
-    }
-    case 'TransitionDelay': {
-      const tde = extractTransitionDuration(data);
-      if (tde) styles.transitionDelay = tde;
-      break;
-    }
+    // Migrated to engine/animations/* + engine/scrolling/* in Phase 9 via
+    // applyAnimationsPhase9 / applyScrollingPhase9.  Covers
+    // animation-name/duration/delay/iteration-count/direction/fill-mode/
+    // play-state/composition/timing-function/timeline/range/range-start/
+    // range-end, transition-property/duration/delay/timing-function/behavior,
+    // timeline-scope, view-timeline(-axis/-inset/-name),
+    // view-transition-name/-class/-group, scroll-timeline(-name/-axis).
 
     // ==================== Box Shadow ====================
     // Migrated to engine/effects/shadow/BoxShadow* in Phase 5.
@@ -393,56 +390,9 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
 // Phase 8 — replaced by the Config/Extractor/Applier triplets under
 // engine/transforms/* and engine/effects/{filter,clip}/*.
 
-function extractTransitionProperty(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-  if (Array.isArray(data)) return data.join(', ');
-  return 'all';
-}
-
-function extractTransitionDuration(data: unknown): string | null {
-  if (Array.isArray(data)) {
-    return data.map((t) => `${extractMs(t) || 0}ms`).join(', ');
-  }
-  const ms = extractMs(data);
-  return ms !== null ? `${ms}ms` : null;
-}
-
-function extractTimingFunction(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((tf) => extractSingleTimingFunction(tf))
-      .filter(Boolean)
-      .join(', ');
-  }
-
-  return extractSingleTimingFunction(data);
-}
-
-function extractSingleTimingFunction(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    if (Array.isArray(obj.cb)) {
-      const [x1, y1, x2, y2] = obj.cb;
-      return `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`;
-    }
-
-    if (typeof obj.steps === 'number') {
-      const jump = (obj.jumpTerm as string) || 'end';
-      return `steps(${obj.steps}, ${jump})`;
-    }
-
-    if (obj.type === 'linear') return 'linear';
-
-    if (typeof obj.original === 'string') return obj.original;
-  }
-
-  return null;
-}
+// Legacy extractTransitionProperty / extractTransitionDuration /
+// extractTimingFunction / extractSingleTimingFunction removed in Phase 9 —
+// replaced by the Config/Extractor/Applier triplets under engine/animations/*.
 
 // Legacy extractBoxShadow removed — now handled by engine/effects/shadow/BoxShadow*
 

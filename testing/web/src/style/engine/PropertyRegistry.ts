@@ -123,6 +123,19 @@ export const migratedProperties = new Set<string>([
   'MaskSize', 'MaskOrigin', 'MaskClip', 'MaskComposite', 'MaskType',
   'MaskBorderSource', 'MaskBorderSlice', 'MaskBorderWidth', 'MaskBorderOutset',
   'MaskBorderRepeat', 'MaskBorderMode',
+  // Phase 9 — animations/transitions/view-timeline/view-transition (26) +
+  // scroll-timeline (3).  See engine/animations/* and engine/scrolling/*.
+  // Most pass through to native CSS; L2 keys are csstype-widened in the
+  // applier (see `as unknown as CSSProperties` comments inline).
+  'AnimationName', 'AnimationDuration', 'AnimationDelay', 'AnimationIterationCount',
+  'AnimationDirection', 'AnimationFillMode', 'AnimationPlayState', 'AnimationComposition',
+  'AnimationTimingFunction', 'AnimationTimeline', 'AnimationRange', 'AnimationRangeStart',
+  'AnimationRangeEnd',
+  'TransitionProperty', 'TransitionDuration', 'TransitionDelay', 'TransitionTimingFunction',
+  'TransitionBehavior',
+  'TimelineScope', 'ViewTimeline', 'ViewTimelineAxis', 'ViewTimelineInset',
+  'ViewTimelineName', 'ViewTransitionName', 'ViewTransitionClass', 'ViewTransitionGroup',
+  'ScrollTimeline', 'ScrollTimelineName', 'ScrollTimelineAxis',
 ]);
 
 /**

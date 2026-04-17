@@ -40,6 +40,11 @@ struct StyleConverterTestApp: App {
         // Error) — ff901e3 hotfix convention.
         TransformsSelfTest.run()
         EffectsSelfTest.run()
+        // Phase 9 — animations + transitions + view-timeline +
+        // view-transition + scroll-timeline (25 properties). Runs AFTER
+        // EffectsSelfTest so earlier phase drift surfaces first. Print-
+        // only on failure (ff901e3 hotfix convention).
+        AnimationsSelfTest.run()
         #endif
     }
 
