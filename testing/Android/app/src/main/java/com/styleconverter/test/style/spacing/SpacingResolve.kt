@@ -57,6 +57,7 @@ fun resolveToDp(value: LengthValue?, ctx: SpacingContext): Dp {
         is LengthValue.Auto -> 0.dp  // Auto on padding isn't meaningful; margin handled separately.
         is LengthValue.Intrinsic -> 0.dp  // min-content/max-content invalid here.
         is LengthValue.Fraction -> 0.dp  // fr invalid outside grid tracks.
+        is LengthValue.None -> 0.dp  // `none` on padding/margin isn't meaningful.
         is LengthValue.Unknown -> 0.dp
     }
 }

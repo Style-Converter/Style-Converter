@@ -21,11 +21,15 @@ export type LengthUnit =
   | 'fr';                                                           // grid fraction
 
 // Discriminated-union result of parsing a length shape.
+// 'none' is legal for max-width/max-height etc. ({"type":"none"} IR shape).
+// 'intrinsic' optionally carries a `bound` for fit-content(<length>) — the Kotlin
+// CSS parser emits {"fit-content":{...length...}} for the bounded form.
 export type LengthValue =
   | { kind: 'exact'; px: number }
   | { kind: 'relative'; value: number; unit: LengthUnit; pxFallback?: number }
   | { kind: 'auto' }
-  | { kind: 'intrinsic'; intrinsicKind: 'min-content' | 'max-content' | 'fit-content' }
+  | { kind: 'none' }
+  | { kind: 'intrinsic'; intrinsicKind: 'min-content' | 'max-content' | 'fit-content'; bound?: LengthValue }
   | { kind: 'fraction'; fr: number }
   | { kind: 'calc'; expression: string }
   | { kind: 'unknown' };
@@ -76,6 +80,19 @@ export function extractLength(data: unknown): LengthValue {
   // Everything below expects an object shape.
   if (typeof data !== 'object') return { kind: 'unknown' };
   const obj = data as Record<string, unknown>;
+
+  // 'none' envelope: {"type":"none"} — emitted by the Kotlin CSS parser for
+  // max-width/max-height "none" (examples: MaxWidth_None, MaxHeight_None).
+  if (obj.type === 'none') return { kind: 'none' };
+
+  // Bounded fit-content: {"fit-content": <LengthValue-shape>} — IR emits this
+  // for the CSS `fit-content(<length>)` functional form (width-intrinsic fixture).
+  if ('fit-content' in obj) {
+    const inner = obj['fit-content'];
+    // Recursively parse the bound so every unit the inner length supports works.
+    const bound = extractLength(inner);
+    return { kind: 'intrinsic', intrinsicKind: 'fit-content', bound };
+  }
 
   // Grid fraction: { fr: N } — quirk #4, NOT a length even though related.
   if (typeof obj.fr === 'number') return { kind: 'fraction', fr: obj.fr };
@@ -129,7 +146,10 @@ export function toCssLength(v: LengthValue): string {
     case 'exact':     return `${v.px}px`;                           // canonical pixel output
     case 'relative':  return `${v.value}${v.unit === 'percent' ? '%' : v.unit}`;
     case 'auto':      return 'auto';                                // passthrough keyword
-    case 'intrinsic': return v.intrinsicKind;                       // 'min-content' etc.
+    case 'none':      return 'none';                                // valid on max-*
+    case 'intrinsic': return v.bound                                // fit-content can carry a bound
+      ? `fit-content(${toCssLength(v.bound)})`                      // -> fit-content(200px) etc.
+      : v.intrinsicKind;                                            // unbounded: 'min-content' / ...
     case 'fraction':  return `${v.fr}fr`;                           // grid tracks
     case 'calc':      return `calc(${v.expression})`;               // raw passthrough
     case 'unknown':   return 'auto';                                // safe fallback

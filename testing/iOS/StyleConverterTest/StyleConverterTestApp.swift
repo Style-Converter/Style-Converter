@@ -17,6 +17,8 @@ struct StyleConverterTestApp: App {
         CoreTypesSelfTest.run()
         // Phase 2 — spacing extractors + resolver sanity check.
         SpacingSelfTest.run()
+        // Phase 3 — sizing extractor + applier resolver sanity check.
+        SizingSelfTest.run()
         #endif
     }
 

@@ -403,12 +403,33 @@ async function compareBaseline(name, normalized, canvasW, canvasH) {
       result.platforms[p] = { present: false };
       continue;
     }
-    const baseImg = await padToCanvas(await loadPng(baselinePath), canvasW, canvasH);
+
+    // The canvas dimensions passed in are the max across the CURRENT
+    // captures only. When a baseline image has different dimensions
+    // (e.g. a property now renders at the correct size where it
+    // previously rendered wrong), the baseline may overflow canvasW/H.
+    // `padToCanvas` uses sharp's `extend`, which only grows — passing
+    // an already-larger image fails with "Image to extend contains an
+    // area that is outside requested dimensions".
+    //
+    // Fix: compute a per-pair canvas that's max of baseline and current
+    // dims on BOTH axes, then pad both images to that.
+    const baselineRaw = await loadPng(baselinePath);
+    const cur = normalized[p];
+    const pairW = Math.max(canvasW, baselineRaw.width, cur.width);
+    const pairH = Math.max(canvasH, baselineRaw.height, cur.height);
+
+    const baseImg = await padToCanvas(baselineRaw, pairW, pairH);
+    // Re-pad current if the pair canvas grew beyond the earlier pad.
+    const curImg = (cur.width === pairW && cur.height === pairH)
+      ? cur
+      : await padToCanvas(cur, pairW, pairH);
+
     const pair = await diffPair(
       baseImg,
-      normalized[p],
-      canvasW,
-      canvasH,
+      curImg,
+      pairW,
+      pairH,
       `${name.replace(/\.png$/, '')}__baseline-${p}.png`
     );
     const regressed =

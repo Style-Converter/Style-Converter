@@ -1,84 +1,69 @@
 package com.styleconverter.test.style.sizing
 
-import androidx.compose.ui.unit.Dp
+// Phase 3: SizingConfig now stores every sizing side as a LengthValue? so that
+// %/em/vw/calc shapes survive to the Applier. Width/Height/InlineSize/BlockSize
+// still honour min/max-content, auto, and fit-content(<bound>). The new None
+// variant is used by MaxWidth/MaxHeight when the CSS author wrote `none`.
+//
+// The old SizeValue sealed interface (Fixed/Percentage/FillMax/WrapContent/Auto)
+// is removed — all callers funneled through SizingApplier.applySizing and are
+// unaffected by the internal representation swap.
+//
+// IR shapes reaching each field (see Phase 3 spec):
+//   Width/Height           : WidthValue shape → LengthValue (Exact/Relative/Auto/Intrinsic)
+//   MinWidth/MaxWidth …    : WidthValue + "none" → LengthValue (+ None)
+//   BlockSize/InlineSize   : SizeValue shape (raw IRLength or bare number)
+//   MinBlockSize/…/MaxI…   : SizeValue shape + "none"
+//   AspectRatio            : its own AspectRatioValue type
+
+import com.styleconverter.test.style.core.types.LengthValue
 
 /**
- * Configuration for CSS sizing properties.
- *
- * Handles width, height, min/max constraints and logical properties
- * (block-size, inline-size) for writing mode support.
+ * All sizing properties collected off one component. A null slot means the IR
+ * did not specify that side — the Applier leaves Compose defaults in place.
+ * [aspectRatio] is null when the author did not set aspect-ratio at all.
  */
 data class SizingConfig(
-    val width: SizeValue? = null,
-    val height: SizeValue? = null,
-    val minWidth: Dp? = null,
-    val maxWidth: Dp? = null,
-    val minHeight: Dp? = null,
-    val maxHeight: Dp? = null,
-    // Logical sizes (for writing mode support)
-    val blockSize: SizeValue? = null,
-    val inlineSize: SizeValue? = null,
-    val minBlockSize: Dp? = null,
-    val maxBlockSize: Dp? = null,
-    val minInlineSize: Dp? = null,
-    val maxInlineSize: Dp? = null
+    // Physical sizing (CSS width/height).
+    val width: LengthValue? = null,
+    val height: LengthValue? = null,
+    // Constraints. `None` here distinguishes explicit `max-width: none` from
+    // "not specified" — both collapse to "no upper bound" at apply time, but
+    // keeping the variant means other tooling can tell them apart.
+    val minWidth: LengthValue? = null,
+    val maxWidth: LengthValue? = null,
+    val minHeight: LengthValue? = null,
+    val maxHeight: LengthValue? = null,
+    // Logical sides. LTR block flow: blockSize=height, inlineSize=width.
+    val blockSize: LengthValue? = null,
+    val inlineSize: LengthValue? = null,
+    val minBlockSize: LengthValue? = null,
+    val maxBlockSize: LengthValue? = null,
+    val minInlineSize: LengthValue? = null,
+    val maxInlineSize: LengthValue? = null,
+    // aspect-ratio is its own shape.
+    val aspectRatio: AspectRatioValue? = null,
 ) {
-    /**
-     * Returns true if any sizing property is defined.
-     */
+    /** True if any sizing/aspect-ratio slot was populated. */
     val hasSizing: Boolean
         get() = width != null || height != null ||
-                minWidth != null || maxWidth != null ||
-                minHeight != null || maxHeight != null ||
-                blockSize != null || inlineSize != null ||
-                minBlockSize != null || maxBlockSize != null ||
-                minInlineSize != null || maxInlineSize != null
+            minWidth != null || maxWidth != null ||
+            minHeight != null || maxHeight != null ||
+            blockSize != null || inlineSize != null ||
+            minBlockSize != null || maxBlockSize != null ||
+            minInlineSize != null || maxInlineSize != null ||
+            aspectRatio != null
 
     /**
-     * Returns true if any width-related property is defined.
+     * True when any width-direction constraint is specified. Used by callers
+     * that want to apply width-only sizing (e.g. flex item width).
      */
     val hasWidthConstraints: Boolean
         get() = width != null || minWidth != null || maxWidth != null ||
-                inlineSize != null || minInlineSize != null || maxInlineSize != null
+            inlineSize != null || minInlineSize != null || maxInlineSize != null
 
-    /**
-     * Returns true if any height-related property is defined.
-     */
+    /** True when any height-direction constraint is specified. */
     val hasHeightConstraints: Boolean
         get() = height != null || minHeight != null || maxHeight != null ||
-                blockSize != null || minBlockSize != null || maxBlockSize != null
-}
-
-/**
- * Represents a CSS size value which can be a fixed length, percentage,
- * or a keyword like auto, fill, or fit-content.
- */
-sealed interface SizeValue {
-    /**
-     * Fixed size in Dp (from px, pt, em, rem, etc.)
-     */
-    data class Fixed(val dp: Dp) : SizeValue
-
-    /**
-     * Percentage of parent dimension (0.0-1.0 fraction)
-     */
-    data class Percentage(val fraction: Float) : SizeValue
-
-    /**
-     * Fill maximum available space (100% of parent)
-     * Maps to CSS: max-content, fill-available, 100%
-     */
-    data object FillMax : SizeValue
-
-    /**
-     * Size to content (intrinsic sizing)
-     * Maps to CSS: min-content, fit-content
-     */
-    data object WrapContent : SizeValue
-
-    /**
-     * Auto sizing (default behavior)
-     * Maps to CSS: auto
-     */
-    data object Auto : SizeValue
+            blockSize != null || minBlockSize != null || maxBlockSize != null
 }

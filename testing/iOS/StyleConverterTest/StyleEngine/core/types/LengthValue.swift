@@ -40,9 +40,17 @@ enum LengthUnit: String {
     case fr
 }
 
-// Intrinsic sizing keywords (lengths-intrinsic.json). fit-content isn't
-// consistently parsed by the converter today but we accept it defensively.
-enum IntrinsicKind { case minContent, maxContent, fitContent }
+// Intrinsic sizing keywords (lengths-intrinsic.json).
+// `fitContent` carries an optional bound because `fit-content(200px)` ships
+// as `{"fit-content": <inner length>}` in Phase 3 sizing IR. A bare
+// `fit-content` keyword lands via a different code path on the converter
+// (it is emitted as `Generic` on Width today) so the bound is optional
+// for forward-compatibility.
+indirect enum IntrinsicKind: Equatable {
+    case minContent
+    case maxContent
+    case fitContent(bound: LengthValue?)
+}
 
 // Canonical sealed-style representation. Consumers switch exhaustively.
 enum LengthValue: Equatable {
@@ -52,6 +60,10 @@ enum LengthValue: Equatable {
     case intrinsic(kind: IntrinsicKind)
     case fraction(fr: Double)                              // Grid track sizing.
     case calc(expression: String)                          // Unresolved calc().
+    // `max-width: none` / `max-height: none` — no upper bound. Distinct from
+    // `.auto` (which triggers intrinsic sizing) and from `.unknown` (parse
+    // failure). Only surfaces from Min/Max sizing props per CSS spec.
+    case none
     case unknown
 }
 
@@ -89,7 +101,7 @@ private func lengthFromBareString(_ s: String) -> LengthValue {
     case "auto":        return .auto
     case "min-content": return .intrinsic(kind: .minContent)
     case "max-content": return .intrinsic(kind: .maxContent)
-    case "fit-content": return .intrinsic(kind: .fitContent)
+    case "fit-content": return .intrinsic(kind: .fitContent(bound: nil))
     default:            return .unknown
     }
 }
@@ -115,6 +127,21 @@ private func lengthFromObject(_ o: [String: IRValue]) -> LengthValue {
         return .calc(expression: expr)
     }
 
+    // Phase 3 (sizing): `{ "fit-content": <inner> }` shape carries the
+    // bound length. Inner is the same IR as a plain Width — usually
+    // `{ "px": 200.0 }` or a wrapped form — so we recurse through the
+    // full extractor, not just the object path.
+    if let inner = o["fit-content"] {
+        let bound = extractLength(inner)
+        // `.unknown` on the bound means the converter emitted an
+        // unparseable shape; represent as an unbounded fit-content so
+        // the applier still draws the element.
+        if case .unknown = bound {
+            return .intrinsic(kind: .fitContent(bound: nil))
+        }
+        return .intrinsic(kind: .fitContent(bound: bound))
+    }
+
     // Quirk #4: grid-only `{ "fr": <n> }` shape (lengths-special.json).
     if let fr = o["fr"]?.doubleValue {
         return .fraction(fr: fr)
@@ -135,8 +162,10 @@ private func lengthFromObject(_ o: [String: IRValue]) -> LengthValue {
             return lengthFromObject(inner)
 
         // Quirk #2: `{ "type":"percentage", "value": 50.0 }` on sizing props.
+        // Some shorthands emit `{"type":"percentage","percentage":80.0}`
+        // instead of `value` (seen on Sizing_MaxWidthPercent in visual-test).
         case "percentage":
-            if let v = o["value"]?.doubleValue {
+            if let v = (o["value"] ?? o["percentage"])?.doubleValue {
                 return .relative(value: v, unit: .percent, pxFallback: nil)
             }
             return .unknown
@@ -152,6 +181,11 @@ private func lengthFromObject(_ o: [String: IRValue]) -> LengthValue {
         case "calc":
             let expr = o["expression"]?.stringValue ?? ""
             return .calc(expression: expr)
+
+        // Phase 3 (sizing): `max-width: none` / `max-height: none` ship as
+        // `{ "type": "none" }`. Distinct from `.auto` or `.unknown`.
+        case "none":
+            return .none
 
         default:
             break // Fall through to legacy shapes below.

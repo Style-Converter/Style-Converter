@@ -103,6 +103,41 @@ describe('extractLength', () => {
     expect(extractLength({ expr: '100% - 2em' }))
       .toEqual({ kind: 'calc', expression: '100% - 2em' });
   });
+
+  // ---- Phase-3 extensions: {type:"none"} + bounded fit-content --------------
+  it('handles {type:"none"} envelope (max-width/max-height "none")', () => {
+    // Confirmed IR shape against MaxWidth_None / MaxHeight_None fixtures.
+    expect(extractLength({ type: 'none' })).toEqual({ kind: 'none' });
+  });
+
+  it('handles bounded fit-content: {"fit-content": {px:200}}', () => {
+    // Matches the IR shape emitted for `width: fit-content(200px)`.
+    expect(extractLength({ 'fit-content': { px: 200 } })).toEqual({
+      kind: 'intrinsic',
+      intrinsicKind: 'fit-content',
+      bound: { kind: 'exact', px: 200 },
+    });
+  });
+
+  it('handles bounded fit-content with a percentage bound', () => {
+    // Ensures the inner length is recursively parsed via the same extractor.
+    expect(extractLength({ 'fit-content': { type: 'percentage', value: 50 } })).toEqual({
+      kind: 'intrinsic',
+      intrinsicKind: 'fit-content',
+      bound: { kind: 'relative', value: 50, unit: 'percent' },
+    });
+  });
+
+  it('handles raw {px:N} SizeValue shape (BlockSize absolute)', () => {
+    // SizeValue lacks the "type":"length" wrapper — just raw {px:N}.
+    expect(extractLength({ px: 100 })).toEqual({ kind: 'exact', px: 100 });
+  });
+
+  it('bare-number still parses as percent for SizeValue (BlockSize 50%)', () => {
+    // Regression guard: Phase-2 bare-number -> percent must keep working for
+    // the SizeValue shape used by InlineSize_Percent_50 fixture.
+    expect(extractLength(50)).toEqual({ kind: 'relative', value: 50, unit: 'percent' });
+  });
 });
 
 describe('toCssLength', () => {
@@ -112,6 +147,10 @@ describe('toCssLength', () => {
     expect(toCssLength({ kind: 'relative', value: 2, unit: 'em' })).toBe('2em');
     expect(toCssLength({ kind: 'auto' })).toBe('auto');
     expect(toCssLength({ kind: 'intrinsic', intrinsicKind: 'min-content' })).toBe('min-content');
+    expect(toCssLength({ kind: 'none' })).toBe('none');
+    expect(toCssLength({
+      kind: 'intrinsic', intrinsicKind: 'fit-content', bound: { kind: 'exact', px: 200 },
+    })).toBe('fit-content(200px)');
     expect(toCssLength({ kind: 'fraction', fr: 1 })).toBe('1fr');
     expect(toCssLength({ kind: 'calc', expression: '10px + 5%' })).toBe('calc(10px + 5%)');
     expect(toCssLength({ kind: 'unknown' })).toBe('auto');

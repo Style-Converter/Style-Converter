@@ -33,8 +33,13 @@ sealed interface LengthValue {
     /** The bare string `"auto"` — CSS intrinsic sizing keyword. */
     data object Auto : LengthValue
 
-    /** Other intrinsic keywords that are not "auto". */
-    data class Intrinsic(val kind: IntrinsicKind) : LengthValue
+    /**
+     * Intrinsic keywords that are not "auto" (min-content, max-content,
+     * fit-content). `fit-content(<len>)` carries an optional bounding length
+     * that caps the intrinsic size; bare `fit-content` without an argument is
+     * emitted as Generic by the parser today and never reaches this extractor.
+     */
+    data class Intrinsic(val kind: IntrinsicKind, val bound: LengthValue? = null) : LengthValue
 
     /** CSS Grid track fraction (`1fr`) — only legal inside grid templates. */
     data class Fraction(val fr: Double) : LengthValue
@@ -42,10 +47,17 @@ sealed interface LengthValue {
     /** Unresolved `calc(...)` expressions we preserve verbatim for later. */
     data class Calc(val expression: String) : LengthValue
 
+    /**
+     * Explicit CSS `none` keyword on min/max sizing properties. Distinct from
+     * Unknown (missing/unparseable) and Auto (intrinsic). Emitted by the IR as
+     * `{"type":"none"}` on MaxWidth/MaxHeight when the author writes `none`.
+     */
+    data object None : LengthValue
+
     /** Parse failure — preferred over null so callers can `when`-exhaust. */
     data object Unknown : LengthValue
 
-    /** Named intrinsic sizes. `fit-content` is not yet emitted by the IR. */
+    /** Named intrinsic sizes. */
     enum class IntrinsicKind { MIN_CONTENT, MAX_CONTENT, FIT_CONTENT }
 }
 
@@ -119,6 +131,18 @@ fun extractLength(json: JsonElement?): LengthValue {
 
     // Grid-only fraction shape: { "fr": 1.0 }.
     json["fr"]?.jsonPrimitive?.doubleOrNull?.let { return LengthValue.Fraction(it) }
+
+    // Min/Max sizing explicit `none`: {"type":"none"}. Seen in
+    // examples/properties/sizing/width-constraints.json → MaxWidth_None.
+    if ((json["type"] as? JsonPrimitive)?.content == "none") return LengthValue.None
+
+    // Bounded fit-content: {"fit-content": <inner-length>}. The inner element
+    // recurses through extractLength so px/em/% shapes all work as bounds.
+    // Seen in width-intrinsic.json → Width_FitContent_Bounded_200px.
+    json["fit-content"]?.let { inner ->
+        val bound = extractLength(inner)
+        return LengthValue.Intrinsic(LengthValue.IntrinsicKind.FIT_CONTENT, bound)
+    }
 
     // Unresolved calc() — the codegen might emit { "calc": "…" } in future.
     (json["calc"] as? JsonPrimitive)?.content?.let { return LengthValue.Calc(it) }

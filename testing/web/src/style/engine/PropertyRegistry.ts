@@ -22,6 +22,11 @@ export const migratedProperties = new Set<string>([
   'MarginBlockStart', 'MarginBlockEnd', 'MarginInlineStart', 'MarginInlineEnd',
   'Gap', 'RowGap', 'ColumnGap',
   'MarginTrim',
+  // Sizing — Phase 3 migration. See engine/sizing/*.
+  'Width', 'Height', 'MinWidth', 'MaxWidth', 'MinHeight', 'MaxHeight',
+  'AspectRatio',
+  'BlockSize', 'InlineSize',
+  'MinBlockSize', 'MaxBlockSize', 'MinInlineSize', 'MaxInlineSize',
 ]);
 
 /**

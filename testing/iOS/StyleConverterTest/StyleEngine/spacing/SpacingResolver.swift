@@ -73,6 +73,11 @@ enum SpacingResolver {
 
         case .unknown:
             return .skip
+
+        // `.none` is sizing-only (`max-width: none`). No spacing meaning —
+        // treat as "no contribution" so the applier collapses to zero.
+        case .none:
+            return .skip
         }
     }
 

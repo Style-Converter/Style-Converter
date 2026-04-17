@@ -17,6 +17,7 @@ function sameLength(a: LengthValue, b: LengthValue): boolean {
     case 'exact':     return a.px === (b as typeof a).px;
     case 'relative':  return a.value === (b as typeof a).value && a.unit === (b as typeof a).unit;
     case 'auto':      return true;                                    // no payload
+    case 'none':      return true;                                    // no payload (Phase-3 variant)
     case 'intrinsic': return a.intrinsicKind === (b as typeof a).intrinsicKind;
     case 'fraction':  return a.fr === (b as typeof a).fr;
     case 'calc':      return a.expression === (b as typeof a).expression;

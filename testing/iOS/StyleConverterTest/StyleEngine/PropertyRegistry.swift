@@ -45,6 +45,14 @@ enum PropertyRegistry {
         "MarginInlineStart", "MarginInlineEnd",
         "Gap", "RowGap", "ColumnGap",
         "MarginTrim",
+        // Phase 3 — sizing family. Physical + logical sizing + aspect-ratio.
+        // See testing/iOS/.../StyleEngine/sizing/.
+        "Width", "Height",
+        "MinWidth", "MaxWidth", "MinHeight", "MaxHeight",
+        "AspectRatio",
+        "BlockSize", "InlineSize",
+        "MinBlockSize", "MaxBlockSize",
+        "MinInlineSize", "MaxInlineSize",
     ]
 
     // MARK: - Query helpers

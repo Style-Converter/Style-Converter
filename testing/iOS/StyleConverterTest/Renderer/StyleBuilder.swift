@@ -28,15 +28,11 @@ struct LayoutConfig {
     var columnGap: CGFloat   = 0
 }
 
-struct SizeConfig {
-    var width: CGFloat?     = nil
-    var height: CGFloat?    = nil
-    var minWidth: CGFloat?  = nil
-    var maxWidth: CGFloat?  = nil
-    var minHeight: CGFloat? = nil
-    var maxHeight: CGFloat? = nil
-    var aspectRatio: CGFloat? = nil
-}
+// Legacy SizeConfig removed — Phase 3 migrated sizing to the engine-side
+// SizeConfig under StyleEngine/sizing. The new type carries full
+// LengthValues instead of pre-resolved CGFloats so percent / em / vw can
+// defer resolution to the applier's GeometryReader. ComponentStyle.size
+// now refers directly to the engine struct.
 
 // Legacy spacing config retained as an empty shim so old references compile
 // while the engine-based PaddingConfig/MarginConfig take over. Migrated-out
@@ -157,27 +153,22 @@ enum StyleBuilder {
         s.spacing.gap        = GapExtractor.extract(from: properties)
         s.spacing.marginTrim = MarginTrimExtractor.extract(from: properties)
 
+        // Phase 3: sizing family. SizeExtractor.extract never returns nil —
+        // it returns an empty config when no sizing props are present; the
+        // applier short-circuits via `hasAny`. Every sizing prop name is in
+        // PropertyRegistry.migrated so we don't double-dispatch below.
+        s.size = SizeExtractor.extract(from: properties)
+
         for prop in properties {
             // Skip migrated properties — the spacing extractors above
             // have already consumed them. `contains` on a Set is O(1).
             if PropertyRegistry.migrated.contains(prop.type) { continue }
 
             switch prop.type {
-            // ── Sizing ──────────────────────────────────────────────────
-            case "Width", "InlineSize":
-                s.size.width = ValueExtractors.extractPx(prop.data)
-            case "Height", "BlockSize":
-                s.size.height = ValueExtractors.extractPx(prop.data)
-            case "MinWidth", "MinInlineSize":
-                s.size.minWidth = ValueExtractors.extractPx(prop.data)
-            case "MaxWidth", "MaxInlineSize":
-                s.size.maxWidth = ValueExtractors.extractPx(prop.data)
-            case "MinHeight", "MinBlockSize":
-                s.size.minHeight = ValueExtractors.extractPx(prop.data)
-            case "MaxHeight", "MaxBlockSize":
-                s.size.maxHeight = ValueExtractors.extractPx(prop.data)
-            case "AspectRatio":
-                s.size.aspectRatio = ValueExtractors.extractFloat(prop.data)
+            // ── Sizing ── migrated to StyleEngine/sizing (Phase 3). All
+            // Width/Height/Min*/Max*/BlockSize/InlineSize/AspectRatio
+            // flow through SizeExtractor above and are listed in
+            // PropertyRegistry.migrated, so they never hit this switch.
 
             // ── Spacing ─── migrated to StyleEngine/spacing (Phase 2) ──
 
@@ -363,7 +354,10 @@ extension View {
     @ViewBuilder
     func applyStyle(_ style: ComponentStyle) -> some View {
         self
-            .modifier(SizingModifier(size: style.size))
+            // Phase 3 — sizing applied via SizeApplier. Uses the threaded
+            // SpacingContext so em/rem/vw resolve against the same 390×844
+            // canvas as padding/margin.
+            .engineSizing(style.size, context: style.spacing.context)
             // Phase 2: padding / margin / margin-trim from StyleEngine/spacing.
             // Order matters — padding is inside the border (CSS box model),
             // margin is outside.
@@ -376,56 +370,9 @@ extension View {
     }
 }
 
-private struct SizingModifier: ViewModifier {
-    let size: SizeConfig
-    func body(content: Content) -> some View {
-        content
-            // `.frame(..., alignment: .topLeading)` is critical for parity
-            // with the CSS block model. By default SwiftUI centers content
-            // inside a `.frame(maxWidth:)`, which made iOS boxes render
-            // in the middle of their parent container while Android and
-            // Web (both using flow layout) placed them at the start.
-            // Anchoring to top-leading makes sized children render at the
-            // block's origin, matching how `<div style="width:200px">`
-            // sits in its flow container on web.
-            .frame(
-                minWidth: size.minWidth,
-                idealWidth: size.width,
-                maxWidth: size.maxWidth ?? size.width,
-                minHeight: size.minHeight,
-                idealHeight: size.height,
-                maxHeight: size.maxHeight ?? size.height,
-                alignment: .topLeading
-            )
-            .modifier(ExactSizeModifier(w: size.width, h: size.height))
-            .modifier(AspectRatioModifier(ratio: size.aspectRatio))
-    }
-}
-
-private struct ExactSizeModifier: ViewModifier {
-    let w: CGFloat?
-    let h: CGFloat?
-    func body(content: Content) -> some View {
-        if w != nil || h != nil {
-            // Same rationale as SizingModifier above — pin to topLeading so
-            // exact-size boxes render at the flow origin instead of centered.
-            content.frame(width: w, height: h, alignment: .topLeading)
-        } else {
-            content
-        }
-    }
-}
-
-private struct AspectRatioModifier: ViewModifier {
-    let ratio: CGFloat?
-    func body(content: Content) -> some View {
-        if let r = ratio, r > 0 {
-            content.aspectRatio(r, contentMode: .fit)
-        } else {
-            content
-        }
-    }
-}
+// Phase 3: SizingModifier / ExactSizeModifier / AspectRatioModifier
+// deleted — the engine-side SizeApplier replaces all three, and the
+// wiring lives in `engineSizing(_:context:)` on View above.
 
 private struct BackgroundModifier: ViewModifier {
     let color: Color?

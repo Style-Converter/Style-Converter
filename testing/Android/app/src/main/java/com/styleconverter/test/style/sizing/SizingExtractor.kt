@@ -1,103 +1,82 @@
 package com.styleconverter.test.style.sizing
 
-import com.styleconverter.test.style.core.types.ValueExtractors
+// Phase 3 SizingExtractor — reads the 13 sizing IR property types into a
+// SizingConfig. All length-shaped IR goes through the Phase 1 extractLength()
+// primitive, which already handles the following shapes that show up here:
+//   {"type":"length","px":N}             — Width/Height absolute
+//   {"type":"length","original":{v,u}}   — Width/Height relative (em/vw/…)
+//   {"type":"percentage","value":N}      — Width/Height percent
+//   {"type":"none"}                      — MinWidth/MaxWidth `none`
+//   {"fit-content":<inner>}              — bounded fit-content
+//   {"px":N} / bare-number / "auto"…     — SizeValue shape for logical sizes
+//
+// AspectRatio has its own wire shape, so we dispatch to extractAspectRatio().
+
+import com.styleconverter.test.style.core.types.LengthValue
+import com.styleconverter.test.style.core.types.extractLength
 import kotlinx.serialization.json.JsonElement
 
-/**
- * Extracts sizing configuration from IR properties.
- *
- * Handles the following CSS properties:
- * - width, height
- * - min-width, max-width, min-height, max-height
- * - block-size, inline-size (logical properties)
- * - min-block-size, max-block-size, min-inline-size, max-inline-size
- */
 object SizingExtractor {
 
     /**
-     * Extract a complete SizingConfig from a list of property type/data pairs.
-     *
-     * @param properties List of (propertyType, data) pairs from IR properties
-     * @return SizingConfig with all extracted sizing values
+     * Property-type strings owned by this extractor. Used by LayoutFacade
+     * (isLayoutProperty) to route IR entries to us.
      */
-    fun extractSizingConfig(properties: List<Pair<String, JsonElement?>>): SizingConfig {
-        var config = SizingConfig()
-
-        properties.forEach { (type, data) ->
-            config = when (type) {
-                // Physical sizing properties
-                "Width" -> config.copy(width = extractSizeValue(data))
-                "Height" -> config.copy(height = extractSizeValue(data))
-                "MinWidth" -> config.copy(minWidth = ValueExtractors.extractDp(data))
-                "MaxWidth" -> config.copy(maxWidth = ValueExtractors.extractDp(data))
-                "MinHeight" -> config.copy(minHeight = ValueExtractors.extractDp(data))
-                "MaxHeight" -> config.copy(maxHeight = ValueExtractors.extractDp(data))
-
-                // Logical sizing properties (writing mode aware)
-                "BlockSize" -> config.copy(blockSize = extractSizeValue(data))
-                "InlineSize" -> config.copy(inlineSize = extractSizeValue(data))
-                "MinBlockSize" -> config.copy(minBlockSize = ValueExtractors.extractDp(data))
-                "MaxBlockSize" -> config.copy(maxBlockSize = ValueExtractors.extractDp(data))
-                "MinInlineSize" -> config.copy(minInlineSize = ValueExtractors.extractDp(data))
-                "MaxInlineSize" -> config.copy(maxInlineSize = ValueExtractors.extractDp(data))
-
-                else -> config
-            }
-        }
-
-        return config
-    }
-
-    /**
-     * Extract a single SizeValue from JSON data.
-     *
-     * Handles:
-     * - Fixed lengths: {"px": 100}
-     * - Percentages: {"original": {"v": 50, "u": "PERCENT"}}
-     * - Keywords: auto, max-content, min-content, fit-content, fill-available
-     *
-     * @param data The JSON element containing the size value
-     * @return SizeValue or null if not extractable
-     */
-    fun extractSizeValue(data: JsonElement?): SizeValue? {
-        if (data == null) return null
-
-        // Check for keywords first
-        val keyword = ValueExtractors.extractKeyword(data)
-        when (keyword?.lowercase()) {
-            "auto" -> return SizeValue.Auto
-            "max-content", "fill-available", "-webkit-fill-available" -> return SizeValue.FillMax
-            "min-content", "fit-content" -> return SizeValue.WrapContent
-            "100%" -> return SizeValue.FillMax
-        }
-
-        // Check for length or percentage
-        return when (val lop = ValueExtractors.extractLengthOrPercentage(data)) {
-            is ValueExtractors.LengthOrPercentage.Length -> SizeValue.Fixed(lop.dp)
-            is ValueExtractors.LengthOrPercentage.Percentage -> {
-                // Handle 100% as FillMax for better Compose mapping
-                if (lop.fraction >= 0.999f) {
-                    SizeValue.FillMax
-                } else {
-                    SizeValue.Percentage(lop.fraction)
-                }
-            }
-            is ValueExtractors.LengthOrPercentage.Auto -> SizeValue.Auto
-            null -> null
-        }
-    }
-
-    /**
-     * Check if a property type is a sizing property.
-     */
-    fun isSizingProperty(propertyType: String): Boolean {
-        return propertyType in SIZING_PROPERTIES
-    }
-
-    private val SIZING_PROPERTIES = setOf(
+    val PROPERTIES: Set<String> = setOf(
         "Width", "Height",
         "MinWidth", "MaxWidth", "MinHeight", "MaxHeight",
         "BlockSize", "InlineSize",
-        "MinBlockSize", "MaxBlockSize", "MinInlineSize", "MaxInlineSize"
+        "MinBlockSize", "MaxBlockSize", "MinInlineSize", "MaxInlineSize",
+        "AspectRatio",
     )
+
+    /**
+     * Fold (type,data) pairs into a SizingConfig. Unknown sizing shapes are
+     * dropped (treated as "not specified") so callers don't need to distinguish
+     * "IR said Unknown" from "property absent".
+     */
+    fun extractSizingConfig(properties: List<Pair<String, JsonElement?>>): SizingConfig {
+        var cfg = SizingConfig()
+        // Walk once, dispatch per property. Last occurrence wins (matches CSS
+        // cascade for same-specificity rules).
+        for ((type, data) in properties) {
+            if (type !in PROPERTIES) continue
+            cfg = when (type) {
+                // Physical sizing. extractLength handles WidthValue shape +
+                // the new None/fit-content extensions for min/max.
+                "Width" -> cfg.copy(width = asSize(data))
+                "Height" -> cfg.copy(height = asSize(data))
+                "MinWidth" -> cfg.copy(minWidth = asSize(data))
+                "MaxWidth" -> cfg.copy(maxWidth = asSize(data))
+                "MinHeight" -> cfg.copy(minHeight = asSize(data))
+                "MaxHeight" -> cfg.copy(maxHeight = asSize(data))
+                // Logical sizing. Same extractLength path: SizeValue shape is
+                // either a raw IRLength ({"px":N}), a bare number (percent),
+                // or an intrinsic keyword — all already handled by Phase 2.
+                "BlockSize" -> cfg.copy(blockSize = asSize(data))
+                "InlineSize" -> cfg.copy(inlineSize = asSize(data))
+                "MinBlockSize" -> cfg.copy(minBlockSize = asSize(data))
+                "MaxBlockSize" -> cfg.copy(maxBlockSize = asSize(data))
+                "MinInlineSize" -> cfg.copy(minInlineSize = asSize(data))
+                "MaxInlineSize" -> cfg.copy(maxInlineSize = asSize(data))
+                // AspectRatio uses its own wire shape.
+                "AspectRatio" -> cfg.copy(aspectRatio = extractAspectRatio(data))
+                else -> cfg
+            }
+        }
+        return cfg
+    }
+
+    /**
+     * Run extractLength and swallow Unknown — we want `null` (slot unset) when
+     * the IR shape is not one we recognise, so the Applier can distinguish
+     * "property absent" from "explicit none/auto".
+     */
+    private fun asSize(data: JsonElement?): LengthValue? {
+        val v = extractLength(data)
+        return if (v is LengthValue.Unknown) null else v
+    }
+
+    /** Predicate used by LayoutFacade dispatch. */
+    fun isSizingProperty(type: String): Boolean = type in PROPERTIES
 }

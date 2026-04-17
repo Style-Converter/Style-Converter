@@ -184,13 +184,20 @@ try {
       continue;
     }
 
+    // Clamp against the actual screenshot bounds — layout can round a
+    // canvas's bottom edge one pixel past the measured pageHeight (e.g. when
+    // aspect-ratio produces a fractional height), which makes sharp's
+    // extract_area throw "bad extract area". Treat sub-pixel overshoot as
+    // benign and trim to what's actually in the screenshot.
+    const meta = await sharp(fullPng).metadata();
+    const imgW = meta.width  ?? entry.x + entry.width;
+    const imgH = meta.height ?? entry.y + entry.height;
+    const left   = Math.max(0, Math.min(entry.x, imgW - 1));
+    const top    = Math.max(0, Math.min(entry.y, imgH - 1));
+    const width  = Math.max(1, Math.min(entry.width,  imgW - left));
+    const height = Math.max(1, Math.min(entry.height, imgH - top));
     await sharp(fullPng)
-      .extract({
-        left:   entry.x,
-        top:    entry.y,
-        width:  entry.width,
-        height: entry.height,
-      })
+      .extract({ left, top, width, height })
       .toFile(resolve(outDir, filename));
     captured += 1;
   }

@@ -26,6 +26,9 @@ import { extractGap } from '../../engine/spacing/GapExtractor';
 import { applyGap } from '../../engine/spacing/GapApplier';
 import { extractMarginTrim } from '../../engine/spacing/MarginTrimExtractor';
 import { applyMarginTrim } from '../../engine/spacing/MarginTrimApplier';
+// Phase-3 sizing engine — width/height/min-*/max-*/block-size/inline-size/aspect-ratio.
+import { extractSize } from '../../engine/sizing/SizeExtractor';
+import { applySize } from '../../engine/sizing/SizeApplier';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -45,6 +48,8 @@ export function buildStyles(properties: IRProperty[]): CSSStyles {
   Object.assign(styles, applyGap(extractGap(properties)));
   const marginTrim = extractMarginTrim(properties);
   if (marginTrim) Object.assign(styles, applyMarginTrim(marginTrim));
+  // Phase-3 sizing — width/height/min-*/max-*/block-size/inline-size/aspect-ratio.
+  Object.assign(styles, applySize(extractSize(properties)));
 
   for (const prop of properties) {
     // Skip properties already served by the engine path above.

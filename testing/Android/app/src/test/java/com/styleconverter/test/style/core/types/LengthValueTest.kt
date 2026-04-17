@@ -151,4 +151,50 @@ class LengthValueTest {
         val v = extractLength(parse("""{"px":-10.0}"""))
         assertEquals(LengthValue.Exact(-10.0), v)
     }
+
+    // ------------- Phase 3 sizing IR shapes -------------
+
+    @Test fun `type-none on max-width yields LengthValue None`() {
+        // examples/properties/sizing/width-constraints.json → MaxWidth_None
+        // emits `data: {"type":"none"}`. Must not collapse to Unknown so the
+        // Applier can tell "explicit none" apart from "not specified".
+        val v = extractLength(parse("""{"type":"none"}"""))
+        assertEquals(LengthValue.None, v)
+    }
+
+    @Test fun `fit-content with bounded inner length is Intrinsic with bound`() {
+        // width-intrinsic.json → Width_FitContent_Bounded_200px emits
+        // {"fit-content":{"px":200.0}}.
+        val v = extractLength(parse("""{"fit-content":{"px":200.0}}"""))
+        assertTrue(v is LengthValue.Intrinsic)
+        val iv = v as LengthValue.Intrinsic
+        assertEquals(LengthValue.IntrinsicKind.FIT_CONTENT, iv.kind)
+        assertEquals(LengthValue.Exact(200.0), iv.bound)
+    }
+
+    @Test fun `fit-content with em inner carries Relative bound`() {
+        // Defensive: parser may one day emit em-bounded fit-content; make sure
+        // the inner length survives as a Relative variant.
+        val v = extractLength(parse("""{"fit-content":{"original":{"v":10.0,"u":"EM"}}}"""))
+        assertTrue(v is LengthValue.Intrinsic)
+        val iv = v as LengthValue.Intrinsic
+        assertEquals(LengthValue.IntrinsicKind.FIT_CONTENT, iv.kind)
+        assertEquals(LengthValue.Relative(10.0, LengthUnit.EM, null), iv.bound)
+    }
+
+    @Test fun `logical sizing px shape parses as Exact`() {
+        // examples/properties/sizing/logical-sizing.json → BlockSize_100px
+        // uses the raw SizeValue shape {"px":100.0}. Phase 2 already handles
+        // this — assert it keeps working for logical sizing too.
+        val v = extractLength(parse("""{"px":100.0}"""))
+        assertEquals(LengthValue.Exact(100.0), v)
+    }
+
+    @Test fun `bare number on logical sizing treated as percent`() {
+        // Logical SizeValue-shape percentages are bare numbers, same as
+        // padding/margin. Sanity check that the Phase 2 bare-number branch
+        // still fires.
+        val v = extractLength(parse("50.0"))
+        assertEquals(LengthValue.Relative(50.0, LengthUnit.PERCENT, null), v)
+    }
 }
