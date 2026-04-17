@@ -53,6 +53,19 @@ enum PropertyRegistry {
         "BlockSize", "InlineSize",
         "MinBlockSize", "MaxBlockSize",
         "MinInlineSize", "MaxInlineSize",
+        // Phase 4 — colour + background + blend + isolation families.
+        // See testing/iOS/.../StyleEngine/{color,background,effects/blend,
+        // performance}/.
+        "BackgroundColor", "Color", "Opacity", "AccentColor", "CaretColor",
+        "BackgroundImage",
+        "BackgroundSize",
+        "BackgroundPosition", "BackgroundPositionX", "BackgroundPositionY",
+        "BackgroundRepeat",
+        "BackgroundClip",
+        "BackgroundOrigin",
+        "BackgroundAttachment",
+        "MixBlendMode", "BackgroundBlendMode",
+        "Isolation",
     ]
 
     // MARK: - Query helpers

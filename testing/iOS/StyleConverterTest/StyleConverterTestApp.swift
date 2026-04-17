@@ -19,6 +19,8 @@ struct StyleConverterTestApp: App {
         SpacingSelfTest.run()
         // Phase 3 — sizing extractor + applier resolver sanity check.
         SizingSelfTest.run()
+        // Phase 4 — colour + background + blend + isolation extractors.
+        ColorBackgroundSelfTest.run()
         #endif
     }
 

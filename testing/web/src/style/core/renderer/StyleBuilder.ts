@@ -7,7 +7,6 @@
 import type { IRProperty } from '../ir/IRModels';
 import {
   extractColor,
-  extractOpacity,
   extractLength,
   extractKeyword,
   extractFloat,
@@ -29,6 +28,36 @@ import { applyMarginTrim } from '../../engine/spacing/MarginTrimApplier';
 // Phase-3 sizing engine — width/height/min-*/max-*/block-size/inline-size/aspect-ratio.
 import { extractSize } from '../../engine/sizing/SizeExtractor';
 import { applySize } from '../../engine/sizing/SizeApplier';
+// Phase-4 color + background engine — see engine/color/*, engine/background/*,
+// engine/effects/blend/*, engine/performance/*.
+import { extractBackgroundColor } from '../../engine/color/BackgroundColorExtractor';
+import { applyBackgroundColor }   from '../../engine/color/BackgroundColorApplier';
+import { extractTextColor }       from '../../engine/color/ColorExtractor';
+import { applyTextColor }         from '../../engine/color/ColorApplier';
+import { extractOpacity }         from '../../engine/color/OpacityExtractor';
+import { applyOpacity }           from '../../engine/color/OpacityApplier';
+import { extractAccentColor }     from '../../engine/color/AccentColorExtractor';
+import { applyAccentColor }       from '../../engine/color/AccentColorApplier';
+import { extractCaretColor }      from '../../engine/color/CaretColorExtractor';
+import { applyCaretColor }        from '../../engine/color/CaretColorApplier';
+import { extractBackgroundImage }      from '../../engine/background/BackgroundImageExtractor';
+import { applyBackgroundImage }        from '../../engine/background/BackgroundImageApplier';
+import { extractBackgroundSize }       from '../../engine/background/BackgroundSizeExtractor';
+import { applyBackgroundSize }         from '../../engine/background/BackgroundSizeApplier';
+import { extractBackgroundPosition }   from '../../engine/background/BackgroundPositionExtractor';
+import { applyBackgroundPosition }     from '../../engine/background/BackgroundPositionApplier';
+import { extractBackgroundRepeat }     from '../../engine/background/BackgroundRepeatExtractor';
+import { applyBackgroundRepeat }       from '../../engine/background/BackgroundRepeatApplier';
+import { extractBackgroundClip }       from '../../engine/background/BackgroundClipExtractor';
+import { applyBackgroundClip }         from '../../engine/background/BackgroundClipApplier';
+import { extractBackgroundOrigin }     from '../../engine/background/BackgroundOriginExtractor';
+import { applyBackgroundOrigin }       from '../../engine/background/BackgroundOriginApplier';
+import { extractBackgroundAttachment } from '../../engine/background/BackgroundAttachmentExtractor';
+import { applyBackgroundAttachment }   from '../../engine/background/BackgroundAttachmentApplier';
+import { extractBlendMode } from '../../engine/effects/blend/BlendModeExtractor';
+import { applyBlendMode }   from '../../engine/effects/blend/BlendModeApplier';
+import { extractIsolation } from '../../engine/performance/IsolationExtractor';
+import { applyIsolation }   from '../../engine/performance/IsolationApplier';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -51,6 +80,24 @@ export function buildStyles(properties: IRProperty[]): CSSStyles {
   // Phase-3 sizing — width/height/min-*/max-*/block-size/inline-size/aspect-ratio.
   Object.assign(styles, applySize(extractSize(properties)));
 
+  // Phase-4 color + background engine.  Each extractor is a single-pass fold
+  // over `properties`; appliers emit CSS keys that the browser renders
+  // natively (static + dynamic colors, gradients, blend modes, isolation).
+  Object.assign(styles, applyBackgroundColor(extractBackgroundColor(properties)));
+  Object.assign(styles, applyTextColor(extractTextColor(properties)));
+  Object.assign(styles, applyOpacity(extractOpacity(properties)));
+  Object.assign(styles, applyAccentColor(extractAccentColor(properties)));
+  Object.assign(styles, applyCaretColor(extractCaretColor(properties)));
+  Object.assign(styles, applyBackgroundImage(extractBackgroundImage(properties)));
+  Object.assign(styles, applyBackgroundSize(extractBackgroundSize(properties)));
+  Object.assign(styles, applyBackgroundPosition(extractBackgroundPosition(properties)));
+  Object.assign(styles, applyBackgroundRepeat(extractBackgroundRepeat(properties)));
+  Object.assign(styles, applyBackgroundClip(extractBackgroundClip(properties)));
+  Object.assign(styles, applyBackgroundOrigin(extractBackgroundOrigin(properties)));
+  Object.assign(styles, applyBackgroundAttachment(extractBackgroundAttachment(properties)));
+  Object.assign(styles, applyBlendMode(extractBlendMode(properties)));
+  Object.assign(styles, applyIsolation(extractIsolation(properties)));
+
   for (const prop of properties) {
     // Skip properties already served by the engine path above.
     if (!isLegacyProperty(prop.type)) continue;
@@ -67,22 +114,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
   const { type, data } = prop;
 
   switch (type) {
-    // ==================== Colors ====================
-    case 'BackgroundColor': {
-      const color = extractColor(data);
-      if (color) styles.backgroundColor = color;
-      break;
-    }
-    case 'Color': {
-      const color = extractColor(data);
-      if (color) styles.color = color;
-      break;
-    }
-    case 'Opacity': {
-      const opacity = extractOpacity(data);
-      if (opacity !== null) styles.opacity = opacity;
-      break;
-    }
+    // Colors/Opacity/AccentColor/CaretColor migrated in Phase 4 (engine/color/*).
 
     // ==================== Sizing ====================
     case 'Width': {
@@ -468,26 +500,8 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Background Image ====================
-    case 'BackgroundImage': {
-      const bi = extractBackgroundImage(data);
-      if (bi) styles.backgroundImage = bi;
-      break;
-    }
-    case 'BackgroundSize': {
-      const bs = extractBackgroundSize(data);
-      if (bs) styles.backgroundSize = bs;
-      break;
-    }
-    case 'BackgroundPosition': {
-      const bp = extractBackgroundPosition(data);
-      if (bp) styles.backgroundPosition = bp;
-      break;
-    }
-    case 'BackgroundRepeat': {
-      const br = extractKeyword(data);
-      if (br) styles.backgroundRepeat = br.toLowerCase().replace('_', '-');
-      break;
-    }
+    // BackgroundImage/Size/Position/Repeat/Clip/Origin/Attachment migrated
+    // in Phase 4 (engine/background/*).
 
     // ==================== Clip Path ====================
     case 'ClipPath': {
@@ -546,7 +560,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
       break;
     }
     case 'ObjectPosition': {
-      const op = extractBackgroundPosition(data);
+      const op = legacyExtractBackgroundPosition(data);
       if (op) styles.objectPosition = op;
       break;
     }
@@ -566,11 +580,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Mix Blend Mode ====================
-    case 'MixBlendMode': {
-      const mbm = extractKeyword(data);
-      if (mbm) styles.mixBlendMode = mbm.toLowerCase().replace('_', '-');
-      break;
-    }
+    // MixBlendMode migrated in Phase 4 (engine/effects/blend/*).
 
     // Default: try to apply as-is for unknown properties
     default:
@@ -925,107 +935,8 @@ function extractTextShadow(data: unknown): string | null {
   return null;
 }
 
-function extractBackgroundImage(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((img) => {
-        const i = img as Record<string, unknown>;
-        const type = i.type as string;
-
-        if (type === 'none') return 'none';
-        if (type === 'url') return `url(${i.url})`;
-
-        if (type?.includes('gradient')) {
-          return extractGradient(i);
-        }
-
-        return null;
-      })
-      .filter(Boolean)
-      .join(', ');
-  }
-
-  return null;
-}
-
-function extractGradient(data: Record<string, unknown>): string {
-  const type = data.type as string;
-  const stops = extractGradientStops(data.stops as unknown[]);
-
-  if (type === 'linear-gradient' || type === 'repeating-linear-gradient') {
-    const angle = extractDegrees(data.angle) ?? 180;
-    const prefix = type === 'repeating-linear-gradient' ? 'repeating-' : '';
-    return `${prefix}linear-gradient(${angle}deg, ${stops})`;
-  }
-
-  if (type === 'radial-gradient' || type === 'repeating-radial-gradient') {
-    const pos = data.position as Record<string, unknown> | undefined;
-    const x = pos?.x ?? 50;
-    const y = pos?.y ?? 50;
-    const prefix = type === 'repeating-radial-gradient' ? 'repeating-' : '';
-    return `${prefix}radial-gradient(circle at ${x}% ${y}%, ${stops})`;
-  }
-
-  if (type === 'conic-gradient' || type === 'repeating-conic-gradient') {
-    const fromAngle = extractDegrees(data.fromAngle) ?? 0;
-    const pos = data.position as Record<string, unknown> | undefined;
-    const x = pos?.x ?? 50;
-    const y = pos?.y ?? 50;
-    const prefix = type === 'repeating-conic-gradient' ? 'repeating-' : '';
-    return `${prefix}conic-gradient(from ${fromAngle}deg at ${x}% ${y}%, ${stops})`;
-  }
-
-  return 'none';
-}
-
-function extractGradientStops(stops: unknown[] | undefined): string {
-  if (!stops) return 'transparent, transparent';
-
-  // Filter out corrupted stops (e.g. "from" parsed as a color from conic-gradient)
-  const cssColorKeywords = new Set([
-    'transparent', 'currentcolor', 'inherit',
-    'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'white', 'black',
-    'cyan', 'magenta', 'gray', 'grey', 'coral', 'navy', 'teal', 'lime', 'aqua',
-    'maroon', 'olive', 'silver', 'fuchsia', 'crimson', 'salmon', 'tomato',
-    'gold', 'khaki', 'plum', 'orchid', 'violet', 'indigo', 'sienna', 'peru',
-    'tan', 'wheat', 'beige', 'linen', 'ivory', 'snow', 'azure', 'honeydew',
-  ]);
-
-  const isValidColor = (c: string) =>
-    c.startsWith('#') || c.startsWith('rgb') || c.startsWith('hsl') ||
-    cssColorKeywords.has(c.toLowerCase());
-
-  return stops
-    .map((stop) => {
-      const s = stop as Record<string, unknown>;
-      const color = extractColor(s.color);
-      if (!color || !isValidColor(color)) return null;
-      const position = s.position;
-      return (position !== null && position !== undefined && typeof position === 'number')
-        ? `${color} ${position}%`
-        : color;
-    })
-    .filter(Boolean)
-    .join(', ') || 'transparent, transparent';
-}
-
-function extractBackgroundSize(data: unknown): string | null {
-  const keyword = extractKeyword(data);
-  if (keyword) return keyword.toLowerCase();
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    const width = extractLength(obj.width) || 'auto';
-    const height = extractLength(obj.height) || 'auto';
-    return `${width} ${height}`;
-  }
-
-  return null;
-}
-
-function extractBackgroundPosition(data: unknown): string | null {
+// Legacy background-position helper retained for `ObjectPosition` (not yet migrated).
+function legacyExtractBackgroundPosition(data: unknown): string | null {
   const keyword = extractKeyword(data);
   if (keyword) return keyword.toLowerCase();
 

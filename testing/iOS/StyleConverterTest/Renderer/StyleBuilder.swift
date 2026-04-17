@@ -127,6 +127,23 @@ struct ComponentStyle {
     var text: TextConfig        = TextConfig()
     var effect: EffectConfig    = EffectConfig()
     var backgroundColor: Color? = nil
+
+    // Phase 4 — colour + background + blend + isolation family outputs.
+    // All optional: nil means "no matching property in IR" so the
+    // corresponding applier short-circuits to identity.
+    var color: ColorConfig?                           = nil
+    var opacity: OpacityConfig?                       = nil
+    var accentColor: AccentColorConfig?               = nil
+    var caretColor: CaretColorConfig?                 = nil
+    var backgroundImage: BackgroundImageConfig?       = nil
+    var backgroundSize: BackgroundSizeConfig?         = nil
+    var backgroundPosition: BackgroundPositionConfig? = nil
+    var backgroundRepeat: BackgroundRepeatConfig?     = nil
+    var backgroundClip: BackgroundClipConfig?         = nil
+    var backgroundOrigin: BackgroundOriginConfig?     = nil
+    var backgroundAttachment: BackgroundAttachmentConfig? = nil
+    var blend: BlendModeConfig?                       = nil
+    var isolation: IsolationConfig?                   = nil
 }
 
 // MARK: - Builder
@@ -159,6 +176,41 @@ enum StyleBuilder {
         // PropertyRegistry.migrated so we don't double-dispatch below.
         s.size = SizeExtractor.extract(from: properties)
 
+        // Phase 4: colour, background, blend, isolation. Each extractor
+        // returns nil when its property wasn't in the IR, letting each
+        // applier short-circuit cleanly. Every listed property type is in
+        // PropertyRegistry.migrated so the legacy switch below skips them.
+        s.color                = ColorExtractor.extract(from: properties)
+        s.opacity              = OpacityExtractor.extract(from: properties)
+        s.accentColor          = AccentColorExtractor.extract(from: properties)
+        s.caretColor           = CaretColorExtractor.extract(from: properties)
+        s.backgroundImage      = BackgroundImageExtractor.extract(from: properties)
+        s.backgroundSize       = BackgroundSizeExtractor.extract(from: properties)
+        s.backgroundPosition   = BackgroundPositionExtractor.extract(from: properties)
+        s.backgroundRepeat     = BackgroundRepeatExtractor.extract(from: properties)
+        s.backgroundClip       = BackgroundClipExtractor.extract(from: properties)
+        s.backgroundOrigin     = BackgroundOriginExtractor.extract(from: properties)
+        s.backgroundAttachment = BackgroundAttachmentExtractor.extract(from: properties)
+        s.blend                = BlendModeExtractor.extract(from: properties)
+        s.isolation            = IsolationExtractor.extract(from: properties)
+
+        // Compatibility bridge — ComponentRenderer reads `text.color`
+        // and `backgroundColor` directly (PlaceholderLabel uses the
+        // latter to pick a contrasting text colour). Mirror the Phase 4
+        // ColorConfig into these legacy fields. The legacy
+        // BackgroundModifier was deleted so mirroring `backgroundColor`
+        // no longer causes a double-paint.
+        if let fg = s.color?.foreground?.toSwiftUIColor() {
+            s.text.color = fg
+        }
+        if let bg = s.color?.background?.toSwiftUIColor() {
+            s.backgroundColor = bg
+        }
+        // Phase 4: opacity is now painted by OpacityApplier. The legacy
+        // EffectsModifier still reads `effect.opacity` — we deliberately
+        // leave it nil so only one modifier applies (the new one). This
+        // matches the "remove the legacy cases" instruction.
+
         for prop in properties {
             // Skip migrated properties — the spacing extractors above
             // have already consumed them. `contains` on a Set is O(1).
@@ -172,11 +224,12 @@ enum StyleBuilder {
 
             // ── Spacing ─── migrated to StyleEngine/spacing (Phase 2) ──
 
-            // ── Colors ──────────────────────────────────────────────────
-            case "BackgroundColor":
-                s.backgroundColor = ValueExtractors.extractColor(prop.data)
-            case "Color":
-                s.text.color = ValueExtractors.extractColor(prop.data)
+            // ── Colors ── migrated to StyleEngine/color (Phase 4) ───────
+            // BackgroundColor + Color now flow through ColorExtractor /
+            // ColorApplier. `text.color` is mirrored from ColorConfig
+            // above so the text renderer keeps working. Both names are
+            // listed in PropertyRegistry.migrated and never hit this
+            // switch.
 
             // ── Borders: widths ─────────────────────────────────────────
             case "BorderTopWidth":    s.border.topWidth    = ValueExtractors.extractPx(prop.data) ?? 0
@@ -245,8 +298,8 @@ enum StyleBuilder {
             // Gap / RowGap / ColumnGap migrated — see GapExtractor.
 
             // ── Effects ─────────────────────────────────────────────────
-            case "Opacity":
-                s.effect.opacity = ValueExtractors.extractFloat(prop.data)
+            // Opacity migrated to StyleEngine/color (Phase 4) — see
+            // OpacityApplier. Not handled here.
             case "Rotate":
                 s.effect.rotation = ValueExtractors.extractDegrees(prop.data)
             case "Scale":
@@ -362,8 +415,35 @@ extension View {
             // Order matters — padding is inside the border (CSS box model),
             // margin is outside.
             .engineSpacingPadding(style.spacing.padding, context: style.spacing.context)
-            .modifier(BackgroundModifier(color: style.backgroundColor, border: style.border))
+            // Phase 4 — painting chain. Order (from innermost outward):
+            //   1. BackgroundImage: gradients sit behind solid colour so
+            //      a BackgroundColor with translucency can tint them.
+            //   2. BackgroundColor: solid paint, rounded-corner aware.
+            //   3. BackgroundClip / Origin / Repeat / Attachment / Size:
+            //      currently stubs (see per-file headers) — kept in the
+            //      chain for future non-identity implementations.
+            //   4. BackgroundPosition: stub today.
+            .engineBackgroundImage(style.backgroundImage)
+            .engineBackgroundColor(style.color, border: style.border)
+            .engineBackgroundClip(style.backgroundClip)
+            .engineBackgroundOrigin(style.backgroundOrigin)
+            .engineBackgroundRepeat(style.backgroundRepeat)
+            .engineBackgroundAttachment(style.backgroundAttachment)
+            .engineBackgroundSize(style.backgroundSize)
+            .engineBackgroundPosition(style.backgroundPosition)
             .modifier(BorderModifier(border: style.border))
+            // Phase 4 — blend / isolation / opacity. `.blendMode`
+            // applies to the whole element (including already-painted
+            // backgrounds) so it must come after the paint chain.
+            // `.compositingGroup` and `.opacity` follow so blending
+            // composites into the isolated buffer before fading.
+            .engineBlendMode(style.blend)
+            .engineIsolation(style.isolation)
+            .engineOpacity(style.opacity)
+            // Phase 4 — accent/caret tint. Accent tints descendant
+            // controls; caret is a stub. Both happily go anywhere.
+            .engineAccentColor(style.accentColor)
+            .engineCaretColor(style.caretColor)
             .modifier(EffectsModifier(effect: style.effect))
             .engineSpacingMargin(style.spacing.margin, context: style.spacing.context)
             .engineSpacingMarginTrim(style.spacing.marginTrim)
@@ -374,24 +454,12 @@ extension View {
 // deleted — the engine-side SizeApplier replaces all three, and the
 // wiring lives in `engineSizing(_:context:)` on View above.
 
-private struct BackgroundModifier: ViewModifier {
-    let color: Color?
-    let border: BorderConfig
-
-    func body(content: Content) -> some View {
-        if let c = color {
-            if border.hasAnyRadius {
-                content.background(
-                    roundedShape(border).fill(c)
-                )
-            } else {
-                content.background(c)
-            }
-        } else {
-            content
-        }
-    }
-}
+// Phase 4: BackgroundModifier removed — BackgroundColor now paints via
+// the new ColorApplier (StyleEngine/color/ColorApplier.swift), which
+// replicates the rounded-corner-aware paint so the switch is pixel
+// equivalent. The `backgroundColor: Color?` field on ComponentStyle is
+// no longer wired to a modifier; it's kept as a compatibility mirror
+// with .text.color for consumers that read it directly.
 
 private struct BorderModifier: ViewModifier {
     let border: BorderConfig

@@ -227,6 +227,12 @@ object ColorExtractor {
 
     /**
      * Extract background position from IR data.
+     *
+     * IR shapes observed in fixtures (see CLAUDE.md Phase 4 notes):
+     *   BackgroundPositionX/Y -> { "type": "keyword", "value": "LEFT" }
+     *   BackgroundPositionX/Y -> { "type": "percentage", "percentage": 50.0 }
+     *   BackgroundPositionX/Y -> { "type": "length", "px": 10.0 }
+     * Also tolerates the legacy shapes the previous extractor handled.
      */
     private fun extractBackgroundPosition(
         data: JsonElement?,
@@ -237,6 +243,8 @@ object ColorExtractor {
 
         when (data) {
             is JsonPrimitive -> {
+                // Legacy path — bare string keywords. Still emitted by some
+                // older producers, so keep support.
                 val keyword = data.contentOrNull?.lowercase()
                 return when (keyword) {
                     "center" -> BackgroundPositionConfig.CENTER
@@ -245,7 +253,6 @@ object ColorExtractor {
                     "left" -> BackgroundPositionConfig.CENTER_LEFT
                     "right" -> BackgroundPositionConfig.CENTER_RIGHT
                     else -> {
-                        // Try to parse as percentage
                         val percent = keyword?.replace("%", "")?.toFloatOrNull()?.div(100f)
                         if (percent != null) {
                             when (type) {
@@ -258,6 +265,31 @@ object ColorExtractor {
                 }
             }
             is JsonObject -> {
+                // New canonical shape: tagged by "type" with a sibling payload.
+                val tag = data["type"]?.jsonPrimitive?.contentOrNull?.lowercase()
+                // Resolve a 0..1 fraction from whichever payload fits.
+                val fraction: Float? = when (tag) {
+                    "keyword" -> when (data["value"]?.jsonPrimitive?.contentOrNull?.uppercase()) {
+                        "LEFT", "TOP" -> 0f
+                        "CENTER" -> 0.5f
+                        "RIGHT", "BOTTOM" -> 1f
+                        else -> null
+                    }
+                    "percentage" -> data["percentage"]?.jsonPrimitive?.floatOrNull?.div(100f)
+                        ?: data["value"]?.jsonPrimitive?.floatOrNull?.div(100f)
+                    // For "length" with absolute px, we can't convert to fraction
+                    // without knowing the element size — fall through and let
+                    // the legacy x/y reader handle it below, or leave unchanged.
+                    else -> null
+                }
+                if (fraction != null) {
+                    return when (type) {
+                        "BackgroundPositionX" -> current.copy(x = fraction)
+                        "BackgroundPositionY" -> current.copy(y = fraction)
+                        else -> BackgroundPositionConfig(fraction, fraction)
+                    }
+                }
+                // Legacy object with {x, y} as percentages — retained for safety.
                 val x = data["x"]?.jsonPrimitive?.floatOrNull?.div(100f) ?: current.x
                 val y = data["y"]?.jsonPrimitive?.floatOrNull?.div(100f) ?: current.y
                 return BackgroundPositionConfig(x, y)
@@ -268,13 +300,27 @@ object ColorExtractor {
 
     /**
      * Extract background size from IR data.
+     *
+     * IR shape (per CLAUDE.md Phase 4):
+     *   BackgroundSize -> ["auto"] | ["cover"] | ["contain"]
+     *   BackgroundSize -> [{ "w": {"px": N} }]              // width-only, h = auto
+     *   BackgroundSize -> [{ "w": {"px": N}, "h": {"px": N} }]
+     *   BackgroundSize -> [{ "w": 50.0, "h": 100.0 }]        // bare numbers = percentages
+     * Multiple layers come through as a multi-element array; we use the first
+     * because the ColorConfig carries a single BackgroundSizeConfig for now.
      */
     private fun extractBackgroundSize(data: JsonElement?): BackgroundSizeConfig {
         if (data == null) return BackgroundSizeConfig.Auto
+        // Unwrap the array envelope — modern IR always wraps in [] for
+        // per-layer support. Also accept a bare value for legacy inputs.
+        val entry: JsonElement = when (data) {
+            is JsonArray -> data.firstOrNull() ?: return BackgroundSizeConfig.Auto
+            else -> data
+        }
 
-        when (data) {
+        when (entry) {
             is JsonPrimitive -> {
-                return when (data.contentOrNull?.lowercase()) {
+                return when (entry.contentOrNull?.lowercase()) {
                     "cover" -> BackgroundSizeConfig.Cover
                     "contain" -> BackgroundSizeConfig.Contain
                     "auto" -> BackgroundSizeConfig.Auto
@@ -282,20 +328,36 @@ object ColorExtractor {
                 }
             }
             is JsonObject -> {
-                val type = data["type"]?.jsonPrimitive?.contentOrNull?.lowercase()
-                when (type) {
+                // Keyword envelope — older format some producers still emit.
+                val typeKey = entry["type"]?.jsonPrimitive?.contentOrNull?.lowercase()
+                when (typeKey) {
                     "cover" -> return BackgroundSizeConfig.Cover
                     "contain" -> return BackgroundSizeConfig.Contain
                     "auto" -> return BackgroundSizeConfig.Auto
                 }
 
-                val width = ValueExtractors.extractDp(data["width"])
-                val height = ValueExtractors.extractDp(data["height"])
-                val widthPct = data["widthPercent"]?.jsonPrimitive?.floatOrNull?.div(100f)
-                val heightPct = data["heightPercent"]?.jsonPrimitive?.floatOrNull?.div(100f)
+                // New canonical w/h shape. Each may be either:
+                //   { "px": N }       absolute length
+                //   bare number N     percentage (0..100)
+                //   absent            treat as auto
+                val wEl = entry["w"]
+                val hEl = entry["h"]
+                val (width, widthPct) = parseSizeAxis(wEl)
+                val (height, heightPct) = parseSizeAxis(hEl)
 
-                return if (width != null || height != null || widthPct != null || heightPct != null) {
-                    BackgroundSizeConfig.Dimensions(width, height, widthPct, heightPct)
+                // Legacy object with explicit pct fields — retained for safety.
+                val legacyWPct = entry["widthPercent"]?.jsonPrimitive?.floatOrNull?.div(100f)
+                val legacyHPct = entry["heightPercent"]?.jsonPrimitive?.floatOrNull?.div(100f)
+
+                return if (width != null || height != null
+                    || widthPct != null || heightPct != null
+                    || legacyWPct != null || legacyHPct != null) {
+                    BackgroundSizeConfig.Dimensions(
+                        width = width,
+                        height = height,
+                        widthPercent = widthPct ?: legacyWPct,
+                        heightPercent = heightPct ?: legacyHPct
+                    )
                 } else {
                     BackgroundSizeConfig.Auto
                 }
@@ -305,12 +367,53 @@ object ColorExtractor {
     }
 
     /**
+     * Parse one axis (`w` or `h`) of BackgroundSize into (Dp, percent-fraction).
+     * Exactly one side of the Pair will be non-null for any valid input.
+     */
+    private fun parseSizeAxis(el: JsonElement?): Pair<androidx.compose.ui.unit.Dp?, Float?> {
+        if (el == null) return null to null
+        return when (el) {
+            // Bare number = percentage (0..100). Divide by 100 to match the
+            // Dimensions.widthPercent contract (0..1 fraction).
+            is JsonPrimitive -> el.floatOrNull?.let { null to (it / 100f) } ?: (null to null)
+            // Object with px field = absolute length.
+            is JsonObject -> ValueExtractors.extractDp(el) to null
+            else -> null to null
+        }
+    }
+
+    /**
      * Extract background repeat from IR data.
+     *
+     * IR shape (per fixtures):
+     *   BackgroundRepeat -> ["repeat"] | ["no-repeat"] | ["space"] | ["round"]
+     *   BackgroundRepeat -> [{"x": "repeat", "y": "no-repeat"}]  // repeat-x
+     *   BackgroundRepeat -> [{"x": "no-repeat", "y": "repeat"}]  // repeat-y
      */
     private fun extractBackgroundRepeat(data: JsonElement?): BackgroundRepeatConfig {
-        val keyword = when (data) {
-            is JsonPrimitive -> data.contentOrNull?.lowercase()?.replace("-", "_")
-            is JsonObject -> data["type"]?.jsonPrimitive?.contentOrNull?.lowercase()?.replace("-", "_")
+        if (data == null) return BackgroundRepeatConfig.REPEAT
+        // Unwrap array envelope — first layer wins until ColorConfig gains
+        // per-layer repeat support.
+        val entry: JsonElement = when (data) {
+            is JsonArray -> data.firstOrNull() ?: return BackgroundRepeatConfig.REPEAT
+            else -> data
+        }
+        // For two-axis objects, detect repeat-x / repeat-y directly.
+        if (entry is JsonObject) {
+            val x = entry["x"]?.jsonPrimitive?.contentOrNull?.lowercase()
+            val y = entry["y"]?.jsonPrimitive?.contentOrNull?.lowercase()
+            if (x != null && y != null) {
+                return when {
+                    x == "repeat" && y == "no-repeat" -> BackgroundRepeatConfig.REPEAT_X
+                    x == "no-repeat" && y == "repeat" -> BackgroundRepeatConfig.REPEAT_Y
+                    x == "no-repeat" && y == "no-repeat" -> BackgroundRepeatConfig.NO_REPEAT
+                    else -> BackgroundRepeatConfig.REPEAT
+                }
+            }
+        }
+        val keyword = when (entry) {
+            is JsonPrimitive -> entry.contentOrNull?.lowercase()?.replace("-", "_")
+            is JsonObject -> entry["type"]?.jsonPrimitive?.contentOrNull?.lowercase()?.replace("-", "_")
             else -> null
         } ?: return BackgroundRepeatConfig.REPEAT
 
@@ -327,11 +430,18 @@ object ColorExtractor {
 
     /**
      * Extract background attachment from IR data.
+     *
+     * IR shape: [{"type": "scroll"}] | [{"type": "fixed"}] | [{"type": "local"}]
      */
     private fun extractBackgroundAttachment(data: JsonElement?): BackgroundAttachment {
-        val keyword = when (data) {
-            is JsonPrimitive -> data.contentOrNull?.lowercase()
-            is JsonObject -> data["type"]?.jsonPrimitive?.contentOrNull?.lowercase()
+        if (data == null) return BackgroundAttachment.SCROLL
+        val entry: JsonElement = when (data) {
+            is JsonArray -> data.firstOrNull() ?: return BackgroundAttachment.SCROLL
+            else -> data
+        }
+        val keyword = when (entry) {
+            is JsonPrimitive -> entry.contentOrNull?.lowercase()
+            is JsonObject -> entry["type"]?.jsonPrimitive?.contentOrNull?.lowercase()
             else -> null
         } ?: return BackgroundAttachment.SCROLL
 

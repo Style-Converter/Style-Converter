@@ -27,6 +27,13 @@ export const migratedProperties = new Set<string>([
   'AspectRatio',
   'BlockSize', 'InlineSize',
   'MinBlockSize', 'MaxBlockSize', 'MinInlineSize', 'MaxInlineSize',
+  // Colors + background — Phase 4 migration. See engine/color/*, engine/background/*,
+  // engine/effects/blend/*, engine/performance/*.
+  'BackgroundColor', 'Color', 'Opacity', 'AccentColor', 'CaretColor',
+  'BackgroundImage', 'BackgroundSize',
+  'BackgroundPosition', 'BackgroundPositionX', 'BackgroundPositionY',
+  'BackgroundRepeat', 'BackgroundClip', 'BackgroundOrigin', 'BackgroundAttachment',
+  'MixBlendMode', 'BackgroundBlendMode', 'Isolation',
 ]);
 
 /**

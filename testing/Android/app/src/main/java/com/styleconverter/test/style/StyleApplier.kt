@@ -92,6 +92,9 @@ import com.styleconverter.test.style.spacing.MarginTrimConfig
 import com.styleconverter.test.style.spacing.MarginTrimExtractor
 import com.styleconverter.test.style.background.BackgroundBoxConfig
 import com.styleconverter.test.style.background.BackgroundBoxExtractor
+import com.styleconverter.test.style.performance.IsolationApplier
+import com.styleconverter.test.style.performance.IsolationConfig
+import com.styleconverter.test.style.performance.IsolationExtractor
 import com.styleconverter.test.style.typography.TextEmphasisConfig
 import com.styleconverter.test.style.typography.FontVariantConfig
 import com.styleconverter.test.style.typography.FontSynthesisConfig
@@ -227,7 +230,9 @@ object StyleApplier {
         // Typography sub-configs
         val textEmphasis: TextEmphasisConfig = TextEmphasisConfig(),
         val fontVariant: FontVariantConfig = FontVariantConfig(),
-        val fontSynthesis: FontSynthesisConfig = FontSynthesisConfig()
+        val fontSynthesis: FontSynthesisConfig = FontSynthesisConfig(),
+        // Phase 4 addition — CSS isolation (AUTO/ISOLATE). See IsolationConfig.
+        val isolation: IsolationConfig = IsolationConfig()
     ) {
         /**
          * Returns true if any style properties are present.
@@ -279,7 +284,8 @@ object StyleApplier {
                     backgroundBox.hasBackgroundBox ||
                     textEmphasis.hasEmphasis ||
                     fontVariant.hasFontVariant ||
-                    fontSynthesis.hasFontSynthesis
+                    fontSynthesis.hasFontSynthesis ||
+                    isolation.hasIsolation
     }
 
     /**
@@ -366,7 +372,10 @@ object StyleApplier {
             // Typography sub-extractors
             textEmphasis = TypographyExtractor.extractTextEmphasisConfig(properties),
             fontVariant = TypographyExtractor.extractFontVariantConfig(properties),
-            fontSynthesis = TypographyExtractor.extractFontSynthesisConfig(properties)
+            fontSynthesis = TypographyExtractor.extractFontSynthesisConfig(properties),
+            // Isolation is pulled from IsolationExtractor — keeps this module
+            // self-contained and easy to unit test.
+            isolation = IsolationExtractor.extractIsolationConfig(properties)
         )
     }
 
@@ -396,6 +405,12 @@ object StyleApplier {
         // CSS rendering model: transforms, clip, opacity, and visibility apply to the
         // ENTIRE element (including background). In Compose, modifier order is outer→inner,
         // so these "whole-element" effects must come FIRST (outermost) in the chain.
+
+        // 0. Isolation — `isolation: isolate` creates a new stacking/blending
+        //    context. We apply it as the outermost modifier so the offscreen
+        //    compositing boundary wraps everything this element paints,
+        //    preventing mix-blend-mode inside from leaking through to ancestors.
+        result = IsolationApplier.applyIsolation(result, config.isolation)
 
         // 1. Interactions (visibility/alpha) — outermost: hides entire element
         result = InteractionApplier.applyInteraction(result, config.interactions)
