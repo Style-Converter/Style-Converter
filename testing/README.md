@@ -1,0 +1,194 @@
+# Cross-platform screenshot testing
+
+A three-way visual comparison system for iOS / Android / Web SDUI renderers.
+
+Each platform captures chromeless per-component PNGs onto an identical
+canvas. A single Node script compares them pixel-by-pixel and perceptually
+(via SSIM), then emits an HTML report + machine-readable manifest.
+
+## Quick start
+
+From the repository root:
+
+```bash
+./test-all.sh                        # uses examples/visual-test.json
+./test-all.sh examples/foo.json      # different input
+```
+
+The script:
+
+1. Runs the Gradle converter → `out/tmpOutput.json`
+2. Syncs IR into every platform bundle
+3. Builds + launches iOS on a simulator, pulls captures (skipped if no Xcode)
+4. Configures the Android emulator + installs the APK, pulls captures (skipped if no adb)
+5. Starts a Vite server in capture mode + runs Puppeteer, writes captures
+6. Generates `testing/report/index.html` and opens it
+
+Every platform step is independently skip-able — if you don't have an
+Android emulator attached, `test-all.sh` still runs iOS + Web and the
+report shows placeholders for Android.
+
+## The capture contract
+
+All three platforms render each component onto an identical surface:
+
+| property     | value                         |
+| ------------ | ----------------------------- |
+| width        | **exactly 390 px**            |
+| height       | natural (no clamping)         |
+| background   | solid `#1A1A2E` (no alpha)    |
+| padding      | 16 px on all sides            |
+| scale        | 1 px = 1 logical pixel        |
+| chrome       | none — no header / footer / border / label |
+
+Output file naming is shared: `{index}_{ComponentName}.png`
+(e.g. `023_Shadow_Simple.png`). The index + name come from the flattened
+component walk of `tmpOutput.json`; every platform walks the IR in the
+same order.
+
+### Where "chromeless" is implemented
+
+- iOS:     [`StyleConverterTest/Screenshot/CaptureCanvas.swift`](iOS/StyleConverterTest/Screenshot/CaptureCanvas.swift)
+- Android: `CaptureCanvas` composable in [`ScreenshotCaptureScreen.kt`](Android/app/src/main/java/com/styleconverter/test/screenshot/ScreenshotCaptureScreen.kt)
+- Web:     [`src/ui/CaptureGallery.tsx`](web/src/ui/CaptureGallery.tsx) (reached via `?mode=capture`)
+
+If any of these drifts from the 390-wide / #1A1A2E / 16-padding contract,
+the cross-platform diff is no longer meaningful.
+
+## Comparison metrics
+
+Per pair (iOS↔Android, iOS↔Web, Android↔Web) the report records:
+
+- **SSIM** (Structural Similarity, via [ssim.js](https://www.npmjs.com/package/ssim.js)):
+  a perceptual metric from 0 to 1. Tolerates subpixel font AA; catches
+  real structural differences. Thresholds:
+  - ≥ 0.97 → considered **identical** in the summary count
+  - ≥ 0.90 → not flagged as "diff" in the row header
+  - ≥ 0.85 → yellow warning tier
+  - < 0.85 → red (clearly different)
+
+- **Pixel mismatch %** (via [pixelmatch](https://www.npmjs.com/package/pixelmatch)):
+  percent of pixels whose color differs beyond an AA-aware threshold.
+  Useful for drill-down but not a primary summary because platform font
+  rendering routinely eats a few percent.
+
+- A **red-overlay diff PNG** showing where the mismatches are. Handy when
+  SSIM tells you "these differ" but you need to see *where*.
+
+When run with `--baseline`, each platform's current capture is ALSO diffed
+against its committed baseline in `testing/baseline/`. A row is marked
+"regressed" if any platform drops below the thresholds.
+
+## Commands
+
+```bash
+# Full run: convert → capture every platform → generate report.
+./test-all.sh
+
+# Capture without re-building one of the platforms
+SKIP_IOS=1 ./test-all.sh
+SKIP_ANDROID=1 ./test-all.sh
+SKIP_WEB=1 ./test-all.sh
+
+# Update baseline from the current captures (do this after an intentional
+# visual change, e.g. adding a new IR property).
+UPDATE_BASELINE=1 ./test-all.sh
+
+# Compare against baseline and exit non-zero if anything regressed.
+# Intended for CI.
+BASELINE=1 ./test-all.sh
+
+# Just re-generate the report from existing captures (no rebuild)
+( cd testing && node compare-screenshots.mjs )
+( cd testing && node compare-screenshots.mjs --baseline )
+( cd testing && node compare-screenshots.mjs --pixel-threshold 1 --ssim-threshold 0.98 )
+
+# Capture a single platform manually
+( cd testing/web && node capture-screenshots.mjs --url http://localhost:3000 )
+```
+
+## What lives where
+
+```
+testing/
+├── README.md                                (this file)
+├── package.json                             — deps for compare-screenshots.mjs
+├── compare-screenshots.mjs                  — pairwise SSIM + pixelmatch + HTML
+├── baseline/                                — committed known-good captures (opt-in)
+├── report/                                  — GENERATED per run; gitignored
+│   ├── index.html                           — the comparison view
+│   ├── manifest.json                        — structured data (CI / tooling)
+│   ├── images/{iOS,Android,web}/*.png       — originals, copied for portability
+│   └── diffs/*.png                          — red-overlay diff PNGs
+│
+├── iOS/
+│   ├── project.yml                          — XcodeGen source of truth
+│   ├── StyleConverterTest/
+│   │   └── Screenshot/CaptureCanvas.swift   — the chromeless render
+│   └── screenshots/*.png                    — GENERATED; gitignored
+│
+├── Android/
+│   ├── app/src/main/java/.../screenshot/
+│   │   └── ScreenshotCaptureScreen.kt       — contains `CaptureCanvas` composable
+│   └── screenshots/*.png                    — GENERATED; gitignored
+│
+└── web/
+    ├── capture-screenshots.mjs              — Puppeteer driver for ?mode=capture
+    ├── src/ui/CaptureGallery.tsx            — chromeless React component
+    ├── src/ui/App.tsx                       — routes between gallery / capture mode
+    └── screenshots/*.png                    — GENERATED; gitignored
+```
+
+## Interpreting a report row
+
+Each row is one component. From top to bottom you see:
+
+1. **Filename + badges** — warn badge appears when platforms captured at
+   different heights (common when iOS is missing a property that adds
+   visual weight — e.g. outline increases Android's height but not iOS's).
+
+2. **Three platform images** — iOS, Android, web side-by-side.
+
+3. **Three pairwise diffs** — each shows SSIM, Δpx, and a red-overlay
+   image highlighting differing pixels. The left border of each cell is
+   color-coded:
+   - green = SSIM ≥ 0.97 (perceptually identical)
+   - yellow = 0.85 ≤ SSIM < 0.97 (noticeable but usually AA / font)
+   - red = SSIM < 0.85 (real rendering disagreement)
+
+4. **Baseline comparison** (only with `--baseline`) — each platform's
+   current capture vs its committed baseline. Marked `regressed` if any
+   drops below the thresholds.
+
+Use the "Show only components with diffs" checkbox at the top to narrow
+down to rows flagged `has-diff`.
+
+## Troubleshooting
+
+- **iOS build fails with "CaptureCanvas not in scope"**: delete
+  `testing/iOS/StyleConverterTest.xcodeproj/` and re-run — XcodeGen
+  re-picks up new files. `test-all.sh` does this automatically.
+
+- **Android captures come out at 358×N instead of 390×N**: check the
+  emulator's `wm size` / `wm density` — the canvas measurement assumes
+  1px = 1dp (density 160). `test-all.sh` sets this.
+
+- **Web capture times out**: the Puppeteer script waits for a
+  `data-capture-ready` sentinel emitted by `CaptureGallery` after all
+  canvases render. If the gallery fails to load (check
+  `testing/web/public/ir-components.json`), no sentinel means timeout.
+
+- **"Maximum update depth exceeded" in capture console**: the hot-reload
+  hook used by the dev gallery needs a memoized callback. Capture mode
+  disables hot-reload (see `App.tsx`) so you shouldn't see this during
+  captures.
+
+## Adding a new platform
+
+1. Implement a chromeless capture mode that respects the contract above.
+2. Write captures as `{index:03}_{ComponentName}.png` into a new
+   directory under `testing/`.
+3. In [compare-screenshots.mjs](compare-screenshots.mjs), extend the
+   `PLATFORMS` array and the `paths` map.
+4. Update the HTML `renderRow` to include the new column.
+5. Extend `test-all.sh` with a matching capture step.

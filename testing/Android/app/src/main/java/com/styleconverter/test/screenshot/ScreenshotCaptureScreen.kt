@@ -12,6 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -298,17 +300,26 @@ private fun CaptureView(
             )
         }
 
-        // Component render area — captured via PixelCopy
+        // Component render area — captured via PixelCopy.
+        //
+        // The canvas is a chromeless 390dp-wide surface on a solid #1A1A2E
+        // background with 16dp padding. Natural height (no chrome, no card
+        // border, no labels). Matches the iOS `CaptureCanvas` and web
+        // `<CaptureCanvas>` contract so captures are pixel-diffable.
+        //
+        // We wrap in `verticalScroll` so tall components (long flex stacks,
+        // grids) can still fit during layout even if they exceed the
+        // available vertical space. PixelCopy still grabs only the canvas
+        // rect, which is the natural height of the component + padding.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.TopCenter
         ) {
-            ComponentCaptureCard(
+            CaptureCanvas(
                 component = component,
-                index = currentIndex,
                 onPositioned = { posInWindow, widthPx, heightPx ->
                     onCardPositioned(Rect(
                         posInWindow.x.roundToInt(),
@@ -323,105 +334,60 @@ private fun CaptureView(
     }
 }
 
+/**
+ * Chromeless per-component capture surface used by the three-way screenshot
+ * comparison pipeline (iOS / Android / Web).
+ *
+ * Contract — matches iOS `CaptureCanvas` and web `<CaptureCanvas>`:
+ *   - Width            : exactly 390dp
+ *   - Height           : component's natural height (no clamping, no minimum)
+ *   - Background       : solid #1A1A2E (no alpha compositing)
+ *   - Padding          : 16dp on all sides
+ *   - No header, footer, border, or label — just the component.
+ *
+ * PixelCopy captures exactly this surface by using `onGloballyPositioned` to
+ * report the canvas rect in window coordinates. The outer `CaptureView` must
+ * set the emulator density to 160 (1dp == 1px) so captures land at 390 px
+ * wide, matching iOS and web.
+ */
 @Composable
-private fun ComponentCaptureCard(
+private fun CaptureCanvas(
     component: IRComponent,
-    index: Int,
     onPositioned: (androidx.compose.ui.geometry.Offset, Float, Float) -> Unit,
     onRendered: () -> Unit
 ) {
+    // Give Compose a frame to settle, then tell the caller we're ready.
+    // The delay is conservatively larger for components with complex
+    // sub-trees (grids, transforms) where layout may span multiple frames.
     LaunchedEffect(component.id) {
-        delay(100)
+        delay(150)
         onRendered()
     }
 
-    Column(
+    // `onGloballyPositioned` must come BEFORE `.padding()` in the modifier
+    // chain so it reports the full 390dp outer rect (including padding +
+    // background), not the post-padding inner content-box. Using the inner
+    // rect would crop 16dp off every side → 358dp captures that don't line
+    // up with iOS / web's 390px.
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(BgColor)
-            .background(CardBg)
-            .border(1.dp, BorderColor, RoundedCornerShape(8.dp))
+            .width(CaptureCanvasWidth)
+            .background(CaptureCanvasBg)
             .onGloballyPositioned { coords ->
                 val pos = coords.positionInWindow()
                 onPositioned(pos, coords.size.width.toFloat(), coords.size.height.toFloat())
             }
+            .padding(CaptureCanvasPadding)
     ) {
-        // Card Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(CardHeaderBg)
-                .drawBottomBorder(1.dp, BorderColor)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "#${index + 1}",
-                fontSize = 12.sp,
-                color = TextIndex,
-                fontFamily = FontFamily.Monospace
-            )
-            Text(
-                text = component.name,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextWhite,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = component.id,
-                fontSize = 11.sp,
-                color = TextIndex,
-                fontFamily = FontFamily.Monospace
-            )
-        }
-
-        // Card Content
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 80.dp)
-                .padding(12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            ComponentRenderer.RenderComponent(component)
-        }
-
-        // Card Footer
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .drawTopBorder(1.dp, BorderColor)
-                .background(CardFooterBg)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val childInfo = if (component.children != null && component.children!!.isNotEmpty()) {
-                ", ${component.children!!.size} children"
-            } else ""
-            Text(
-                text = "${component.properties.size} props$childInfo",
-                fontSize = 12.sp,
-                color = TextPropCount
-            )
-            // "Show Props" button matching web gallery card footer
-            Box(
-                modifier = Modifier
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "Show Props",
-                    fontSize = 11.sp,
-                    color = Color(0xFF888888)
-                )
-            }
-        }
+        ComponentRenderer.RenderComponent(component)
     }
 }
+
+// Shared capture-canvas constants. Kept at file scope so tests, debug tools,
+// and future capture modes can reference the same values.
+private val CaptureCanvasWidth   = 390.dp
+private val CaptureCanvasPadding = 16.dp
+private val CaptureCanvasBg      = Color(0xFF1A1A2E)
 
 @Composable
 private fun CompleteView(
