@@ -151,9 +151,144 @@ All CSS values normalize to universal formats:
 
 ---
 
-## Android SDUI Implementation Status
+## Style-engine architecture (canonical)
 
-### Fully Working (Visual Rendering)
+All three runtime renderers (Android, iOS, Web) share **one** folder structure
+for their style engines. That structure is locked to the folders under
+`src/main/kotlin/app/irmodels/properties/` and
+`src/main/kotlin/app/parsing/css/properties/longhands/`. These three trees —
+irmodels, parser, style-engine — are kept byte-for-byte parallel: the same
+category paths, the same property files. If a property lives at
+`irmodels/properties/borders/sides/BorderTopWidth.kt`, its runtime
+implementations live at the mirror paths:
+
+```
+testing/Android/app/src/main/java/com/styleconverter/test/style/
+  └── borders/sides/BorderTopWidth{Config,Extractor,Applier}.kt
+testing/iOS/StyleConverterTest/StyleEngine/
+  └── borders/sides/BorderTopWidth{Config,Extractor,Applier}.swift
+testing/web/src/style/engine/
+  └── borders/sides/BorderTopWidth{Config,Extractor,Applier}.ts
+```
+
+The categories (mirrored 1:1 from irmodels/properties/):
+
+```
+animations/ · appearance/ · background/ · borders/ (sides/, radius/, image/)
+color/ · columns/ · container/ · content/ · counters/ · effects/ (clip/, mask/,
+shadow/, filter/, shapes/, blend/) · experimental/ · global/ · images/
+interactions/ · layout/ (advanced/, flexbox/, grid/, position/) · lists/
+math/ · navigation/ · paging/ · performance/ · print/ · regions/ · rendering/
+rhythm/ · scrolling/ · shapes/ · sizing/ · spacing/ · speech/ · svg/ · table/
+transforms/ · typography/
+```
+
+If a category isn't yet implemented on a platform the folder still exists,
+empty, with a `README.md` stub describing what goes there. This keeps coverage
+auditable by `ls`.
+
+## Per-property contract
+
+Each property ships as a **triplet per platform**, in the canonical subfolder:
+
+| file | purpose |
+|---|---|
+| `{Property}Config.{ext}`    | Typed value struct (what was extracted, ready for rendering) |
+| `{Property}Extractor.{ext}` | `IRProperty → Config`. Handles every CSS value flavor the parser recognizes (see `src/main/kotlin/app/parsing/css/properties/longhands/{category}/{Property}PropertyParser.kt` for the full list) |
+| `{Property}Applier.{ext}`   | `Config → platform output` (Compose Modifier on Android, SwiftUI modifier on iOS, CSS declaration on Web) |
+
+### Hard rules for every file
+
+- **Short** — target ≤200 lines. If a file grows past ~300, split it (e.g. one
+  applier per value family).
+- **Every line commented.** Comments explain the *why*, not just the *what*.
+  For extractors, reference the exact CSS spec section or parser file you're
+  mirroring. For appliers, cite the platform API you're calling and why.
+- **No silent fallthroughs.** If a value variant isn't supported on this
+  platform yet, log it via the PropertyTracker or emit a TODO + keep the
+  cross-platform comparison honest.
+- **Registered, not dispatched inline.** Each `Extractor` registers itself
+  with the platform's `PropertyRegistry`; the main `StyleApplier` reads from
+  the registry instead of a giant `switch`. This makes coverage introspectable
+  at runtime (see `PropertyRegistry.allRegistered()`).
+
+## Done definition for a property
+
+A property is "done" when **all five** are true:
+
+1. **Test fixture** in `examples/properties/{category}/{property}.json` exercises
+   every value variant listed in the parser's value flavors (see the CSS
+   parser's `{Property}PropertyParser.kt`). One component per variant.
+2. **Triplet exists on all three platforms** in the matching subfolder, with
+   the commenting + size rules above.
+3. **`./test-all.sh examples/properties/{category}/{property}.json`** runs cleanly:
+   - zero `decode error` rows
+   - every pair's SSIM ≥ 0.95 for every variant
+   - no "size mismatch" warnings
+4. **Baseline committed** — `UPDATE_BASELINE=1 ./test-all.sh …` runs; the
+   resulting `testing/baseline/{platform}__{NNN}_{Variant}.png` files are
+   staged and the baseline PRs are in-scope for the category PR.
+5. **Documentation updated** — the category's coverage matrix row in
+   `testing/README.md` is flipped to ✓.
+
+## Implementation phases
+
+The rollout plan is **complete** (Phases 0–11, 12 commits). Full
+execution history + per-phase status lives in `testing/ROLLOUT.md`;
+per-category coverage matrix is at `testing/COVERAGE.md` and regenerated
+by `node testing/coverage-audit.mjs`.
+
+Current coverage vs the 550-property IR catalogue (33 categories):
+
+| platform | claimed | coverage |
+|---|---:|---:|
+| Android | 545 / 550 | 99.1% |
+| iOS | 545 / 550 | 99.1% |
+| Web | 533 / 550 | 96.9% |
+
+Baseline: 327 cross-platform comparisons on the visual-test fixture,
+0 regressions.
+
+Phase summary (see ROLLOUT.md for commit hashes):
+
+- **Phase 0** Canonical folder scaffold on all three platforms; Android
+  refactored to mirror irmodels.
+- **Phase 1** Primitive extractors (lengths, colors, angles, times,
+  numbers, keywords).
+- **Phase 2** spacing (26 props).
+- **Phase 3** sizing (7).
+- **Phase 4** colors + background (37).
+- **Phase 5** borders (47).
+- **Phase 6** typography (110).
+- **Phase 7 / 7b** layout (61) — scaffold then flexbox/grid/position
+  implementation.
+- **Phase 8** effects + transforms (38).
+- **Phase 9** animations + transitions + timelines (29) — config
+  extraction only; runtime animation execution is follow-up work per
+  platform.
+- **Phase 10** long tail (~150 across 22 categories).
+- **Phase 11** baseline harness + `testing/COVERAGE.md` + audit script.
+
+---
+
+## Implementation status
+
+See `testing/COVERAGE.md` for the live per-category / per-platform
+coverage matrix (regenerate with `node testing/coverage-audit.mjs`).
+
+The legacy "Android SDUI Implementation Status" section that used to live
+here listed ~60 working properties and a handful of TODOs, pinned to the
+pre-rollout architecture. That status is now stale: all three platforms
+claim the full 550-property IR surface (minus three L4 gaps — see
+COVERAGE.md), the legacy `sdui/` folder has been folded into the
+canonical `style/` tree, and the per-property contract documented above
+is enforced across all categories.
+
+For audit purposes the truncated legacy status block follows, untouched
+from pre-Phase-0 for historical reference:
+
+<details>
+<summary>Pre-Phase-0 Android status (historical)</summary>
 
 **Layout & Sizing** (12 properties)
 - `Width`, `Height`, `MinWidth`, `MaxWidth`, `MinHeight`, `MaxHeight`
@@ -280,28 +415,56 @@ Resize                           # No drag handles
 PageBreak*                       # No printing
 ```
 
+</details>
+
 ---
 
-## Key Files Reference
+## Key files reference (current)
 
-| File | Purpose |
-|------|---------|
-| `PropertyApplier.kt` | Main IR → Modifier converter (1100 lines) |
-| `ComponentRenderer.kt` | Layout detection & rendering (640 lines) |
-| `ValueExtractors.kt` | Extract Dp, Color, Float from IR JSON |
-| `BackgroundApplier.kt` | Gradient rendering |
-| `BorderApplier.kt` | Per-side border drawing |
-| `FilterApplier.kt` | CSS filter → ColorMatrix |
-| `TextStyleApplier.kt` | Typography properties |
-| `GridApplier.kt` | CSS Grid → LazyVerticalGrid |
+Android (canonical tree):
+- `testing/Android/app/src/main/java/com/styleconverter/test/style/PropertyRegistry.kt` — coverage registry
+- `testing/Android/app/src/main/java/com/styleconverter/test/style/<category>/` — per-category Config / Extractor / Applier triplets
+- `testing/Android/app/src/main/java/com/styleconverter/test/style/core/renderer/ComponentRenderer.kt` — engine + legacy dispatch
 
-## Adding New Properties
+iOS (canonical tree):
+- `testing/iOS/StyleConverterTest/StyleEngine/PropertyRegistry.swift` — registry
+- `testing/iOS/StyleConverterTest/StyleEngine/<category>/` — per-category triplets
+- `testing/iOS/StyleConverterTest/Renderer/StyleBuilder.swift` + `Renderer/ComponentRenderer.swift`
 
-1. **IR Model**: Add to `irmodels/properties/` (if new property)
-2. **Parser**: Add to `parsing/css/properties/longhands/`
-3. **Registry**: Register in `PropertyParserRegistry.kt`
-4. **Android**: Add case in `PropertyApplier.applyPropertyInternal()`
-5. **Test**: Add example to `visual-test.json`
+Web (canonical tree):
+- `testing/web/src/style/engine/PropertyRegistry.ts` — registry
+- `testing/web/src/style/engine/<category>/` — per-category triplets + per-category `_dispatch.ts`
+- `testing/web/src/style/core/renderer/StyleBuilder.ts` — top-level dispatcher
+
+Shared tooling:
+- `testing/compare-screenshots.mjs` — 3-way SSIM + pixelmatch + HTML report
+- `testing/coverage-audit.mjs` — IR vs PropertyRegistry coverage matrix
+- `testing/baseline/` — committed per-platform PNGs for `BASELINE=1 ./test-all.sh`
+- `examples/properties/<category>/` — per-category fixture suites
+
+## Adding a new property
+
+When adding a new CSS property to the system:
+
+1. **IR model**: add `irmodels/properties/<category>/<Name>Property.kt`
+   (serialized naming: `<Name>Property` — the `Property` suffix is part
+   of the filename convention `coverage-audit.mjs` relies on).
+2. **Parser**: add `parsing/css/properties/longhands/<category>/<Name>PropertyParser.kt`.
+3. **Parser registry**: wire into `PropertyParserRegistry.kt`.
+4. **Fixture**: add a component under `examples/properties/<category>/<property>.json`
+   exercising every value variant the parser recognises.
+5. **Platform engines** — for each of Android / iOS / Web:
+   a. Author `Config` + `Extractor` + `Applier` under `style(/Engine)/<category>/`
+      matching the "Per-property contract" section above.
+   b. Claim the IR type name in `PropertyRegistry` (either directly or via
+      a grouped `Set` union).
+   c. Add a unit test under the matching `test`/`tests` tree.
+6. **Run `./test-all.sh examples/properties/<category>/<property>.json`**;
+   iterate until all platform pairs hit SSIM ≥ 0.95 on every variant.
+7. **Update baseline** with `UPDATE_BASELINE=1 ./test-all.sh …` and commit
+   the captures alongside the engine code.
+8. **Verify coverage** with `node testing/coverage-audit.mjs` — the new
+   property must show up under the right category on every platform.
 
 ## Tech Stack
 

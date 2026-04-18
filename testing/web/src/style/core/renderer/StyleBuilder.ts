@@ -6,15 +6,99 @@
 
 import type { IRProperty } from '../ir/IRModels';
 import {
-  extractColor,
-  extractOpacity,
   extractLength,
   extractKeyword,
-  extractFloat,
-  extractDegrees,
-  extractMs,
-  extractInt,
 } from '../types/ValueExtractors';
+// Phase-2 engine wiring — spacing properties now flow through per-family
+// extractors + appliers instead of the legacy switch below.
+import { isLegacyProperty } from '../../engine/PropertyRegistry';
+import { extractPadding } from '../../engine/spacing/PaddingExtractor';
+import { applyPadding } from '../../engine/spacing/PaddingApplier';
+import { extractMargin } from '../../engine/spacing/MarginExtractor';
+import { applyMargin } from '../../engine/spacing/MarginApplier';
+import { extractGap } from '../../engine/spacing/GapExtractor';
+import { applyGap } from '../../engine/spacing/GapApplier';
+import { extractMarginTrim } from '../../engine/spacing/MarginTrimExtractor';
+import { applyMarginTrim } from '../../engine/spacing/MarginTrimApplier';
+// Phase-3 sizing engine — width/height/min-*/max-*/block-size/inline-size/aspect-ratio.
+import { extractSize } from '../../engine/sizing/SizeExtractor';
+import { applySize } from '../../engine/sizing/SizeApplier';
+// Phase-4 color + background engine — see engine/color/*, engine/background/*,
+// engine/effects/blend/*, engine/performance/*.
+import { extractBackgroundColor } from '../../engine/color/BackgroundColorExtractor';
+import { applyBackgroundColor }   from '../../engine/color/BackgroundColorApplier';
+import { extractTextColor }       from '../../engine/color/ColorExtractor';
+import { applyTextColor }         from '../../engine/color/ColorApplier';
+import { extractOpacity }         from '../../engine/color/OpacityExtractor';
+import { applyOpacity }           from '../../engine/color/OpacityApplier';
+import { extractAccentColor }     from '../../engine/color/AccentColorExtractor';
+import { applyAccentColor }       from '../../engine/color/AccentColorApplier';
+import { extractCaretColor }      from '../../engine/color/CaretColorExtractor';
+import { applyCaretColor }        from '../../engine/color/CaretColorApplier';
+import { extractBackgroundImage }      from '../../engine/background/BackgroundImageExtractor';
+import { applyBackgroundImage }        from '../../engine/background/BackgroundImageApplier';
+import { extractBackgroundSize }       from '../../engine/background/BackgroundSizeExtractor';
+import { applyBackgroundSize }         from '../../engine/background/BackgroundSizeApplier';
+import { extractBackgroundPosition }   from '../../engine/background/BackgroundPositionExtractor';
+import { applyBackgroundPosition }     from '../../engine/background/BackgroundPositionApplier';
+import { extractBackgroundRepeat }     from '../../engine/background/BackgroundRepeatExtractor';
+import { applyBackgroundRepeat }       from '../../engine/background/BackgroundRepeatApplier';
+import { extractBackgroundClip }       from '../../engine/background/BackgroundClipExtractor';
+import { applyBackgroundClip }         from '../../engine/background/BackgroundClipApplier';
+import { extractBackgroundOrigin }     from '../../engine/background/BackgroundOriginExtractor';
+import { applyBackgroundOrigin }       from '../../engine/background/BackgroundOriginApplier';
+import { extractBackgroundAttachment } from '../../engine/background/BackgroundAttachmentExtractor';
+import { applyBackgroundAttachment }   from '../../engine/background/BackgroundAttachmentApplier';
+import { extractBlendMode } from '../../engine/effects/blend/BlendModeExtractor';
+import { applyBlendMode }   from '../../engine/effects/blend/BlendModeApplier';
+import { extractIsolation } from '../../engine/performance/IsolationExtractor';
+import { applyIsolation }   from '../../engine/performance/IsolationApplier';
+// Phase-5 borders engine — see engine/borders/* and engine/effects/shadow/*.
+// Each triplet folds the relevant IRProperty entries into a typed Config and
+// the Applier emits the native CSS key/value.  47 properties total.
+import { applyBordersPhase5 } from '../../engine/borders/_dispatch';
+import { applyBoxShadow } from '../../engine/effects/shadow/BoxShadowApplier';
+import { extractBoxShadow } from '../../engine/effects/shadow/BoxShadowExtractor';
+// Phase-6 typography engine — 109 properties (CaretColor migrated in Phase 4).
+import { applyTypographyPhase6 } from '../../engine/typography/_dispatch';
+// Phase-7 layout engine — 55 properties (flexbox, grid, position, advanced
+// anchor + motion-path, plus root flow/top-layer keywords).
+import { applyLayoutPhase7 } from '../../engine/layout/_dispatch';
+// Phase-8 engines — transforms (10), effects/clip+filter+mask (22), visibility
+// + overflow (6).  38 properties total.
+import { applyTransformsPhase8 } from '../../engine/transforms/_dispatch';
+import { applyEffectsPhase8 } from '../../engine/effects/_dispatch';
+import { applyVisibilityPhase8 } from '../../engine/visibility/_dispatch';
+// Phase-9 engines — animations + transitions + view-timeline + view-transition
+// (26 props under engine/animations/) and scroll-timeline (3 props under
+// engine/scrolling/).  29 properties total.
+import { applyAnimationsPhase9 } from '../../engine/animations/_dispatch';
+import { applyScrollingPhase9, applyScrollingPhase10 } from '../../engine/scrolling/_dispatch';
+// Phase-10 long-tail engines — 22 categories covering ~170 remaining properties.
+// Web pass-through for nearly all; csstype widening is category-local (see the
+// individual appliers for MDN links + widening rationale).
+import { applySvgPhase10 } from '../../engine/svg/_dispatch';
+import { applySpeechPhase10 } from '../../engine/speech/_dispatch';
+import { applyRenderingPhase10 } from '../../engine/rendering/_dispatch';
+import { applyPrintPhase10 } from '../../engine/print/_dispatch';
+import { applyRegionsPhase10 } from '../../engine/regions/_dispatch';
+import { applyInteractionsPhase10 } from '../../engine/interactions/_dispatch';
+import { applyPerformancePhase10 } from '../../engine/performance/_dispatch';
+import { applyColumnsPhase10 } from '../../engine/columns/_dispatch';
+import { applyPagingPhase10 } from '../../engine/paging/_dispatch';
+import { applyTablePhase10 } from '../../engine/table/_dispatch';
+import { applyShapesPhase10 } from '../../engine/shapes/_dispatch';
+import { applyRhythmPhase10 } from '../../engine/rhythm/_dispatch';
+import { applyNavigationPhase10 } from '../../engine/navigation/_dispatch';
+import { applyImagesPhase10 } from '../../engine/images/_dispatch';
+import { applyAppearancePhase10 } from '../../engine/appearance/_dispatch';
+import { applyCountersPhase10 } from '../../engine/counters/_dispatch';
+import { applyListsPhase10 } from '../../engine/lists/_dispatch';
+import { applyContainerPhase10 } from '../../engine/container/_dispatch';
+import { applyMathPhase10 } from '../../engine/math/_dispatch';
+import { applyExperimentalPhase10 } from '../../engine/experimental/_dispatch';
+import { applyContentPhase10 } from '../../engine/content/_dispatch';
+import { applyGlobalPhase10 } from '../../engine/global/_dispatch';
 
 export interface CSSStyles {
   [key: string]: string | number | undefined;
@@ -26,7 +110,93 @@ export interface CSSStyles {
 export function buildStyles(properties: IRProperty[]): CSSStyles {
   const styles: CSSStyles = {};
 
+  // Phase-2 engine path — spacing properties are bucketed once and
+  // handled by dedicated Config/Applier triplets.  The legacy switch
+  // below skips any migrated type via `isLegacyProperty`.
+  Object.assign(styles, applyPadding(extractPadding(properties)));
+  Object.assign(styles, applyMargin(extractMargin(properties)));
+  Object.assign(styles, applyGap(extractGap(properties)));
+  const marginTrim = extractMarginTrim(properties);
+  if (marginTrim) Object.assign(styles, applyMarginTrim(marginTrim));
+  // Phase-3 sizing — width/height/min-*/max-*/block-size/inline-size/aspect-ratio.
+  Object.assign(styles, applySize(extractSize(properties)));
+
+  // Phase-4 color + background engine.  Each extractor is a single-pass fold
+  // over `properties`; appliers emit CSS keys that the browser renders
+  // natively (static + dynamic colors, gradients, blend modes, isolation).
+  Object.assign(styles, applyBackgroundColor(extractBackgroundColor(properties)));
+  Object.assign(styles, applyTextColor(extractTextColor(properties)));
+  Object.assign(styles, applyOpacity(extractOpacity(properties)));
+  Object.assign(styles, applyAccentColor(extractAccentColor(properties)));
+  Object.assign(styles, applyCaretColor(extractCaretColor(properties)));
+  Object.assign(styles, applyBackgroundImage(extractBackgroundImage(properties)));
+  Object.assign(styles, applyBackgroundSize(extractBackgroundSize(properties)));
+  Object.assign(styles, applyBackgroundPosition(extractBackgroundPosition(properties)));
+  Object.assign(styles, applyBackgroundRepeat(extractBackgroundRepeat(properties)));
+  Object.assign(styles, applyBackgroundClip(extractBackgroundClip(properties)));
+  Object.assign(styles, applyBackgroundOrigin(extractBackgroundOrigin(properties)));
+  Object.assign(styles, applyBackgroundAttachment(extractBackgroundAttachment(properties)));
+  Object.assign(styles, applyBlendMode(extractBlendMode(properties)));
+  Object.assign(styles, applyIsolation(extractIsolation(properties)));
+
+  // Phase-5 borders engine — 46 per-side/corner/image/outline/misc
+  // properties plus BoxShadow routed separately.
+  Object.assign(styles, applyBordersPhase5(properties));
+  Object.assign(styles, applyBoxShadow(extractBoxShadow(properties)));
+
+  // Phase-6 typography engine — single fold handles all 109 typography props.
+  Object.assign(styles, applyTypographyPhase6(properties));
+
+  // Phase-7 layout engine — flexbox + grid + position + advanced anchor/
+  // motion-path + flow/top-layer keywords.  Replaces the legacy Display/
+  // Flex*/Justify*/Align*/Grid*/Position/Top/Right/Bottom/Left/ZIndex switch
+  // cases below.
+  Object.assign(styles, applyLayoutPhase7(properties));
+
+  // Phase-8 engines — transforms/effects/visibility.  Replaces the legacy
+  // Transform/TransformOrigin, Filter/BackdropFilter, ClipPath, Visibility,
+  // Overflow/OverflowX/OverflowY switch cases below.
+  Object.assign(styles, applyTransformsPhase8(properties));
+  Object.assign(styles, applyEffectsPhase8(properties));
+  Object.assign(styles, applyVisibilityPhase8(properties));
+
+  // Phase-9 engines — animations/transitions/view-timeline/view-transition
+  // (26) + scroll-timeline (3).  Replaces the legacy Transition* switch cases
+  // below and brings the previously-missing Animation* family online.
+  Object.assign(styles, applyAnimationsPhase9(properties));
+  Object.assign(styles, applyScrollingPhase9(properties));
+
+  // Phase-10 long tail — 22 categories flip from legacy switch / default
+  // PascalCase→kebab fallback to explicit Config/Extractor/Applier triplets.
+  // Removes the legacy Cursor / PointerEvents / UserSelect / ObjectFit /
+  // ObjectPosition switch cases below.
+  Object.assign(styles, applyScrollingPhase10(properties));
+  Object.assign(styles, applySvgPhase10(properties));
+  Object.assign(styles, applySpeechPhase10(properties));
+  Object.assign(styles, applyRenderingPhase10(properties));
+  Object.assign(styles, applyPrintPhase10(properties));
+  Object.assign(styles, applyRegionsPhase10(properties));
+  Object.assign(styles, applyInteractionsPhase10(properties));
+  Object.assign(styles, applyPerformancePhase10(properties));
+  Object.assign(styles, applyColumnsPhase10(properties));
+  Object.assign(styles, applyPagingPhase10(properties));
+  Object.assign(styles, applyTablePhase10(properties));
+  Object.assign(styles, applyShapesPhase10(properties));
+  Object.assign(styles, applyRhythmPhase10(properties));
+  Object.assign(styles, applyNavigationPhase10(properties));
+  Object.assign(styles, applyImagesPhase10(properties));
+  Object.assign(styles, applyAppearancePhase10(properties));
+  Object.assign(styles, applyCountersPhase10(properties));
+  Object.assign(styles, applyListsPhase10(properties));
+  Object.assign(styles, applyContainerPhase10(properties));
+  Object.assign(styles, applyMathPhase10(properties));
+  Object.assign(styles, applyExperimentalPhase10(properties));
+  Object.assign(styles, applyContentPhase10(properties));
+  Object.assign(styles, applyGlobalPhase10(properties));
+
   for (const prop of properties) {
+    // Skip properties already served by the engine path above.
+    if (!isLegacyProperty(prop.type)) continue;
     applyProperty(styles, prop);
   }
 
@@ -40,22 +210,7 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
   const { type, data } = prop;
 
   switch (type) {
-    // ==================== Colors ====================
-    case 'BackgroundColor': {
-      const color = extractColor(data);
-      if (color) styles.backgroundColor = color;
-      break;
-    }
-    case 'Color': {
-      const color = extractColor(data);
-      if (color) styles.color = color;
-      break;
-    }
-    case 'Opacity': {
-      const opacity = extractOpacity(data);
-      if (opacity !== null) styles.opacity = opacity;
-      break;
-    }
+    // Colors/Opacity/AccentColor/CaretColor migrated in Phase 4 (engine/color/*).
 
     // ==================== Sizing ====================
     case 'Width': {
@@ -132,61 +287,9 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Display & Layout ====================
-    case 'Display': {
-      const display = extractKeyword(data);
-      if (display) styles.display = display.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'FlexDirection': {
-      const fd = extractKeyword(data);
-      if (fd) styles.flexDirection = fd.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'FlexWrap': {
-      const fw = extractKeyword(data);
-      if (fw) styles.flexWrap = fw.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'JustifyContent': {
-      const jc = extractKeyword(data);
-      if (jc) styles.justifyContent = jc.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'AlignItems': {
-      const ai = extractKeyword(data);
-      if (ai) styles.alignItems = ai.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'AlignContent': {
-      const ac = extractKeyword(data);
-      if (ac) styles.alignContent = ac.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'AlignSelf': {
-      const as = extractKeyword(data);
-      if (as) styles.alignSelf = as.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'FlexGrow': {
-      const fg = extractFloat(data);
-      if (fg !== null) styles.flexGrow = fg;
-      break;
-    }
-    case 'FlexShrink': {
-      const fs = extractFloat(data);
-      if (fs !== null) styles.flexShrink = fs;
-      break;
-    }
-    case 'FlexBasis': {
-      const fb = extractLength(data);
-      if (fb) styles.flexBasis = fb;
-      break;
-    }
-    case 'Order': {
-      const order = extractInt(data);
-      if (order !== null) styles.order = order;
-      break;
-    }
+    // Display / FlexDirection / FlexWrap / JustifyContent / AlignItems /
+    // AlignContent / AlignSelf / FlexGrow / FlexShrink / FlexBasis / Order
+    // migrated to engine/layout/flexbox/* in Phase 7 (applyLayoutPhase7).
 
     // ==================== Gap ====================
     case 'Gap': {
@@ -206,344 +309,79 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
     }
 
     // ==================== Grid ====================
-    case 'GridTemplateColumns': {
-      styles.gridTemplateColumns = extractGridTemplate(data);
-      break;
-    }
-    case 'GridTemplateRows': {
-      styles.gridTemplateRows = extractGridTemplate(data);
-      break;
-    }
-    case 'GridColumn': {
-      const gc = extractKeyword(data) || extractGridSpan(data);
-      if (gc) styles.gridColumn = gc;
-      break;
-    }
-    case 'GridRow': {
-      const gr = extractKeyword(data) || extractGridSpan(data);
-      if (gr) styles.gridRow = gr;
-      break;
-    }
-    case 'GridArea': {
-      const ga = extractKeyword(data);
-      if (ga) styles.gridArea = ga;
-      break;
-    }
+    // GridTemplateColumns / GridTemplateRows / GridTemplateAreas,
+    // GridAutoColumns / GridAutoRows / GridAutoFlow,
+    // GridColumnStart / GridColumnEnd / GridRowStart / GridRowEnd,
+    // JustifyItems / JustifySelf / AlignTracks / JustifyTracks / MasonryAutoFlow
+    // migrated to engine/layout/grid/* in Phase 7.
+    // The `GridColumn` / `GridRow` / `GridArea` shorthands are expanded by
+    // the Kotlin parser before reaching us, so no legacy case is needed.
 
     // ==================== Position ====================
-    case 'Position': {
-      const pos = extractKeyword(data);
-      if (pos) styles.position = pos.toLowerCase();
-      break;
-    }
-    case 'Top': {
-      const top = extractLength(data);
-      if (top) styles.top = top;
-      break;
-    }
-    case 'Right': {
-      const right = extractLength(data);
-      if (right) styles.right = right;
-      break;
-    }
-    case 'Bottom': {
-      const bottom = extractLength(data);
-      if (bottom) styles.bottom = bottom;
-      break;
-    }
-    case 'Left': {
-      const left = extractLength(data);
-      if (left) styles.left = left;
-      break;
-    }
-    case 'ZIndex': {
-      const z = extractInt(data);
-      if (z !== null) styles.zIndex = z;
-      break;
-    }
+    // Position / Top / Right / Bottom / Left, Inset{Block,Inline}{Start,End},
+    // and ZIndex migrated to engine/layout/position/* in Phase 7.
 
     // ==================== Borders ====================
-    case 'BorderTopWidth':
-    case 'BorderRightWidth':
-    case 'BorderBottomWidth':
-    case 'BorderLeftWidth': {
-      const side = type.replace('Border', 'border').replace('Width', 'Width');
-      const width = extractBorderWidth(data);
-      if (width) styles[side] = width;
-      break;
-    }
-    case 'BorderTopStyle':
-    case 'BorderRightStyle':
-    case 'BorderBottomStyle':
-    case 'BorderLeftStyle': {
-      const side = type.replace('Border', 'border').replace('Style', 'Style');
-      const style = extractKeyword(data);
-      if (style) styles[side] = style.toLowerCase();
-      break;
-    }
-    case 'BorderTopColor':
-    case 'BorderRightColor':
-    case 'BorderBottomColor':
-    case 'BorderLeftColor': {
-      const side = type.replace('Border', 'border').replace('Color', 'Color');
-      const color = extractColor(data);
-      if (color) styles[side] = color;
-      break;
-    }
-    case 'BorderRadius':
-    case 'BorderTopLeftRadius':
-    case 'BorderTopRightRadius':
-    case 'BorderBottomLeftRadius':
-    case 'BorderBottomRightRadius': {
-      const cssProp = type.charAt(0).toLowerCase() + type.slice(1);
-      const radius = extractLength(data);
-      if (radius) styles[cssProp] = radius;
-      break;
-    }
+    // Migrated to engine/borders/* in Phase 5 — all Border*Width/Style/Color,
+    // every BorderRadius variant, BorderImage*, Outline*, BoxShadow,
+    // BoxDecorationBreak, CornerShape, BorderBoundary flow through
+    // applyBordersPhase5 above.  The legacy `BorderRadius` shorthand
+    // (as opposed to the per-corner longhands) is expanded by the Kotlin
+    // CSS parser before it reaches us, so no case here is needed.
 
     // ==================== Typography ====================
-    case 'FontSize': {
-      const fs = extractFontSize(data);
-      if (fs) styles.fontSize = fs;
-      break;
-    }
-    case 'FontWeight': {
-      const fw = extractFontWeight(data);
-      if (fw) styles.fontWeight = fw;
-      break;
-    }
-    case 'FontFamily': {
-      const ff = extractFontFamily(data);
-      if (ff) styles.fontFamily = ff;
-      break;
-    }
-    case 'FontStyle': {
-      const fst = extractKeyword(data);
-      if (fst) styles.fontStyle = fst.toLowerCase();
-      break;
-    }
-    case 'LineHeight': {
-      const lh = extractLineHeight(data);
-      if (lh) styles.lineHeight = lh;
-      break;
-    }
-    case 'LetterSpacing': {
-      const ls = extractLength(data);
-      if (ls) styles.letterSpacing = ls;
-      break;
-    }
-    case 'TextAlign': {
-      const ta = extractKeyword(data);
-      if (ta) styles.textAlign = ta.toLowerCase();
-      break;
-    }
-    case 'TextDecoration': {
-      const td = extractKeyword(data);
-      if (td) styles.textDecoration = td.toLowerCase().replace('_', ' ');
-      break;
-    }
-    case 'TextTransform': {
-      const tt = extractKeyword(data);
-      if (tt) styles.textTransform = tt.toLowerCase();
-      break;
-    }
-    case 'WhiteSpace': {
-      const ws = extractKeyword(data);
-      if (ws) styles.whiteSpace = ws.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'WordBreak': {
-      const wb = extractKeyword(data);
-      if (wb) styles.wordBreak = wb.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'OverflowWrap': {
-      const ow = extractKeyword(data);
-      if (ow) styles.overflowWrap = ow.toLowerCase().replace('_', '-');
-      break;
-    }
+    // Migrated to engine/typography/* in Phase 6 — all font-*, line-*,
+    // letter/word-spacing, text-*, white-space, word-break, overflow-wrap,
+    // line-break, hyphens, direction, writing-mode, ruby-*, vertical-align,
+    // text-shadow, text-overflow, line-clamp, quotes, hanging-punctuation,
+    // initial-letter*, orphans, widows, text-rendering, kerning, line-grid,
+    // line-snap, tab-size, etc. flow through `applyTypographyPhase6` above.
 
     // ==================== Overflow ====================
-    case 'Overflow': {
-      const ov = extractKeyword(data);
-      if (ov) styles.overflow = ov.toLowerCase();
-      break;
-    }
-    case 'OverflowX': {
-      const ox = extractKeyword(data);
-      if (ox) styles.overflowX = ox.toLowerCase();
-      break;
-    }
-    case 'OverflowY': {
-      const oy = extractKeyword(data);
-      if (oy) styles.overflowY = oy.toLowerCase();
-      break;
-    }
+    // Migrated to engine/visibility/Overflow* in Phase 8 (applyVisibilityPhase8).
 
     // ==================== Transforms ====================
-    case 'Transform': {
-      const transform = extractTransform(data);
-      if (transform) styles.transform = transform;
-      break;
-    }
-    case 'TransformOrigin': {
-      const origin = extractTransformOrigin(data);
-      if (origin) styles.transformOrigin = origin;
-      break;
-    }
+    // Migrated to engine/transforms/* in Phase 8 (applyTransformsPhase8).
 
     // ==================== Filters ====================
-    case 'Filter': {
-      const filter = extractFilter(data);
-      if (filter) styles.filter = filter;
-      break;
-    }
-    case 'BackdropFilter': {
-      const bf = extractFilter(data);
-      if (bf) styles.backdropFilter = bf;
-      break;
-    }
+    // Migrated to engine/effects/filter/* in Phase 8 (applyEffectsPhase8).
 
     // ==================== Transitions & Animations ====================
-    case 'TransitionProperty': {
-      const tp = extractTransitionProperty(data);
-      if (tp) styles.transitionProperty = tp;
-      break;
-    }
-    case 'TransitionDuration': {
-      const td = extractTransitionDuration(data);
-      if (td) styles.transitionDuration = td;
-      break;
-    }
-    case 'TransitionTimingFunction': {
-      const ttf = extractTimingFunction(data);
-      if (ttf) styles.transitionTimingFunction = ttf;
-      break;
-    }
-    case 'TransitionDelay': {
-      const tde = extractTransitionDuration(data);
-      if (tde) styles.transitionDelay = tde;
-      break;
-    }
+    // Migrated to engine/animations/* + engine/scrolling/* in Phase 9 via
+    // applyAnimationsPhase9 / applyScrollingPhase9.  Covers
+    // animation-name/duration/delay/iteration-count/direction/fill-mode/
+    // play-state/composition/timing-function/timeline/range/range-start/
+    // range-end, transition-property/duration/delay/timing-function/behavior,
+    // timeline-scope, view-timeline(-axis/-inset/-name),
+    // view-transition-name/-class/-group, scroll-timeline(-name/-axis).
 
     // ==================== Box Shadow ====================
-    case 'BoxShadow': {
-      const shadow = extractBoxShadow(data);
-      if (shadow) styles.boxShadow = shadow;
-      break;
-    }
+    // Migrated to engine/effects/shadow/BoxShadow* in Phase 5.
 
     // ==================== Text Shadow ====================
-    case 'TextShadow': {
-      const ts = extractTextShadow(data);
-      if (ts) styles.textShadow = ts;
-      break;
-    }
+    // Migrated to engine/typography/TextShadow* in Phase 6.
 
     // ==================== Background Image ====================
-    case 'BackgroundImage': {
-      const bi = extractBackgroundImage(data);
-      if (bi) styles.backgroundImage = bi;
-      break;
-    }
-    case 'BackgroundSize': {
-      const bs = extractBackgroundSize(data);
-      if (bs) styles.backgroundSize = bs;
-      break;
-    }
-    case 'BackgroundPosition': {
-      const bp = extractBackgroundPosition(data);
-      if (bp) styles.backgroundPosition = bp;
-      break;
-    }
-    case 'BackgroundRepeat': {
-      const br = extractKeyword(data);
-      if (br) styles.backgroundRepeat = br.toLowerCase().replace('_', '-');
-      break;
-    }
+    // BackgroundImage/Size/Position/Repeat/Clip/Origin/Attachment migrated
+    // in Phase 4 (engine/background/*).
 
     // ==================== Clip Path ====================
-    case 'ClipPath': {
-      const cp = extractClipPath(data);
-      if (cp) styles.clipPath = cp;
-      break;
-    }
+    // Migrated to engine/effects/clip/* in Phase 8 (applyEffectsPhase8).
 
-    // ==================== Cursor ====================
-    case 'Cursor': {
-      const cursor = extractKeyword(data);
-      if (cursor) styles.cursor = cursor.toLowerCase().replace('_', '-');
-      break;
-    }
+    // Cursor migrated to engine/interactions/Cursor* in Phase 10.
 
     // ==================== Visibility ====================
-    case 'Visibility': {
-      const vis = extractKeyword(data);
-      if (vis) styles.visibility = vis.toLowerCase();
-      break;
-    }
+    // Migrated to engine/visibility/Visibility* in Phase 8.
 
     // ==================== Outline ====================
-    case 'OutlineWidth': {
-      const ow = extractLength(data);
-      if (ow) styles.outlineWidth = ow;
-      break;
-    }
-    case 'OutlineStyle': {
-      const os = extractKeyword(data);
-      if (os) styles.outlineStyle = os.toLowerCase();
-      break;
-    }
-    case 'OutlineColor': {
-      const oc = extractColor(data);
-      if (oc) styles.outlineColor = oc;
-      break;
-    }
-    case 'OutlineOffset': {
-      const oo = extractLength(data);
-      if (oo) styles.outlineOffset = oo;
-      break;
-    }
+    // Migrated to engine/borders/outline/Outline* in Phase 5.
 
-    // ==================== Aspect Ratio ====================
-    case 'AspectRatio': {
-      const ar = extractAspectRatio(data);
-      if (ar) styles.aspectRatio = ar;
-      break;
-    }
-
-    // ==================== Object Fit ====================
-    case 'ObjectFit': {
-      const of = extractKeyword(data);
-      if (of) styles.objectFit = of.toLowerCase().replace('_', '-');
-      break;
-    }
-    case 'ObjectPosition': {
-      const op = extractBackgroundPosition(data);
-      if (op) styles.objectPosition = op;
-      break;
-    }
-
-    // ==================== Pointer Events ====================
-    case 'PointerEvents': {
-      const pe = extractKeyword(data);
-      if (pe) styles.pointerEvents = pe.toLowerCase();
-      break;
-    }
-
-    // ==================== User Select ====================
-    case 'UserSelect': {
-      const us = extractKeyword(data);
-      if (us) styles.userSelect = us.toLowerCase();
-      break;
-    }
+    // AspectRatio already handled by Phase-3 sizing engine above; no legacy case.
+    // ObjectFit / ObjectPosition migrated to engine/images/* in Phase 10.
+    // PointerEvents / UserSelect migrated to engine/interactions/* in Phase 10.
 
     // ==================== Mix Blend Mode ====================
-    case 'MixBlendMode': {
-      const mbm = extractKeyword(data);
-      if (mbm) styles.mixBlendMode = mbm.toLowerCase().replace('_', '-');
-      break;
-    }
+    // MixBlendMode migrated in Phase 4 (engine/effects/blend/*).
 
     // Default: try to apply as-is for unknown properties
     default:
@@ -558,523 +396,28 @@ function applyProperty(styles: CSSStyles, prop: IRProperty): void {
 
 // ==================== Helper Functions ====================
 
-function extractBorderWidth(data: unknown): string | null {
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
+// extractBorderWidth removed — now handled by engine/borders/sides/_shared.ts
 
-    // Check for normalized px value
-    if (typeof obj.px === 'number') return `${obj.px}px`;
+// Legacy typography extractors (FontSize/FontWeight/FontFamily/LineHeight)
+// removed in Phase 6 — replaced by the per-property triplets under
+// engine/typography/*.
 
-    // Check for keyword
-    const keyword = extractKeyword(data);
-    if (keyword) {
-      switch (keyword.toLowerCase()) {
-        case 'thin':
-          return '1px';
-        case 'medium':
-          return '3px';
-        case 'thick':
-          return '5px';
-        default:
-          return keyword;
-      }
-    }
-  }
+// extractGridTemplate / extractGridSpan removed in Phase 7 — replaced by
+// engine/layout/grid/_grid_shared.ts (trackSize / renderTrackList / gridLine).
 
-  const length = extractLength(data);
-  return length;
-}
+// Legacy extractTransform / extractTransformOrigin / extractFilter removed in
+// Phase 8 — replaced by the Config/Extractor/Applier triplets under
+// engine/transforms/* and engine/effects/{filter,clip}/*.
 
-function extractFontSize(data: unknown): string | null {
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
+// Legacy extractTransitionProperty / extractTransitionDuration /
+// extractTimingFunction / extractSingleTimingFunction removed in Phase 9 —
+// replaced by the Config/Extractor/Applier triplets under engine/animations/*.
 
-    // Check for normalized px value
-    if (typeof obj.px === 'number') return `${obj.px}px`;
-  }
+// Legacy extractBoxShadow removed — now handled by engine/effects/shadow/BoxShadow*
 
-  const keyword = extractKeyword(data);
-  if (keyword) return keyword.toLowerCase().replace('_', '-');
+// Legacy extractTextShadow removed in Phase 6 — see engine/typography/TextShadow*.
 
-  return extractLength(data);
-}
-
-function extractFontWeight(data: unknown): string | number | null {
-  if (typeof data === 'number') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    if (typeof obj.weight === 'number') return obj.weight;
-  }
-
-  const keyword = extractKeyword(data);
-  if (keyword) {
-    switch (keyword.toLowerCase()) {
-      case 'normal':
-        return 400;
-      case 'bold':
-        return 700;
-      default:
-        return keyword.toLowerCase();
-    }
-  }
-
-  return null;
-}
-
-function extractFontFamily(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data.map((f) => (typeof f === 'string' ? f : '')).filter(Boolean).join(', ');
-  }
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    if (Array.isArray(obj.families)) {
-      return obj.families.join(', ');
-    }
-    if (typeof obj.family === 'string') return obj.family;
-  }
-
-  return extractKeyword(data);
-}
-
-function extractLineHeight(data: unknown): string | number | null {
-  if (typeof data === 'number') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    if (typeof obj.value === 'number') {
-      if (obj.unit === 'px') return `${obj.value}px`;
-      return obj.value; // multiplier
-    }
-  }
-
-  const keyword = extractKeyword(data);
-  if (keyword === 'normal') return 'normal';
-
-  return extractLength(data);
-}
-
-function extractGridTemplate(data: unknown): string {
-  if (Array.isArray(data)) {
-    return data
-      .map((track) => {
-        if (typeof track === 'object' && track !== null) {
-          const t = track as Record<string, unknown>;
-          if (typeof t.fr === 'number') return `${t.fr}fr`;
-          if (typeof t.px === 'number') return `${t.px}px`;
-          if (typeof t.minmax === 'object') {
-            const mm = t.minmax as Record<string, unknown>;
-            return `minmax(${extractLength(mm.min) || '0'}, ${extractLength(mm.max) || '1fr'})`;
-          }
-        }
-        return extractLength(track) || 'auto';
-      })
-      .join(' ');
-  }
-
-  return extractKeyword(data) || 'none';
-}
-
-function extractGridSpan(data: unknown): string | null {
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    if (typeof obj.start === 'number' && typeof obj.end === 'number') {
-      return `${obj.start} / ${obj.end}`;
-    }
-    if (typeof obj.span === 'number') {
-      return `span ${obj.span}`;
-    }
-  }
-  return null;
-}
-
-function extractTransform(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    // Check for expression
-    if (obj.type === 'expression' && typeof obj.expr === 'string') {
-      return obj.expr;
-    }
-
-    // Check for functions list
-    if (Array.isArray(obj.list)) {
-      return obj.list
-        .map((fn) => {
-          const f = fn as Record<string, unknown>;
-          switch (f.fn) {
-            case 'translate': {
-              const x = extractLength(f.x) || '0';
-              const y = extractLength(f.y) || '0';
-              return `translate(${x}, ${y})`;
-            }
-            case 'translateX':
-              return `translateX(${extractLength(f.x) || '0'})`;
-            case 'translateY':
-              return `translateY(${extractLength(f.y) || '0'})`;
-            case 'rotate':
-              return `rotate(${extractDegrees(f.angle) || 0}deg)`;
-            case 'scale': {
-              const sx = f.x ?? 1;
-              const sy = f.y ?? sx;
-              return `scale(${sx}, ${sy})`;
-            }
-            case 'scaleX':
-              return `scaleX(${f.x ?? 1})`;
-            case 'scaleY':
-              return `scaleY(${f.y ?? 1})`;
-            case 'skew':
-              return `skew(${extractDegrees(f.x) || 0}deg, ${extractDegrees(f.y) || 0}deg)`;
-            case 'skewX':
-              return `skewX(${extractDegrees(f.x) || 0}deg)`;
-            case 'skewY':
-              return `skewY(${extractDegrees(f.y) || 0}deg)`;
-            case 'matrix':
-              return `matrix(${(f.values as number[])?.join(', ') || '1,0,0,1,0,0'})`;
-            default:
-              return null;
-          }
-        })
-        .filter(Boolean)
-        .join(' ');
-    }
-  }
-
-  return null;
-}
-
-function extractTransformOrigin(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    const x = extractLength(obj.x) || 'center';
-    const y = extractLength(obj.y) || 'center';
-    return `${x} ${y}`;
-  }
-
-  return null;
-}
-
-function extractFilter(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((fn) => {
-        const f = fn as Record<string, unknown>;
-        switch (f.fn) {
-          case 'blur':
-            return `blur(${extractLength(f.r) || '0'})`;
-          case 'brightness':
-            return `brightness(${f.v ?? 100}%)`;
-          case 'contrast':
-            return `contrast(${f.v ?? 100}%)`;
-          case 'grayscale':
-            return `grayscale(${f.v ?? 0}%)`;
-          case 'saturate':
-            return `saturate(${f.v ?? 100}%)`;
-          case 'sepia':
-            return `sepia(${f.v ?? 0}%)`;
-          case 'invert':
-            return `invert(${f.v ?? 0}%)`;
-          case 'hue-rotate':
-            return `hue-rotate(${extractDegrees(f.angle) || 0}deg)`;
-          case 'opacity':
-            return `opacity(${f.v ?? 100}%)`;
-          case 'drop-shadow': {
-            const x = extractLength(f.x) || '0';
-            const y = extractLength(f.y) || '0';
-            const blur = extractLength(f.blur) || '0';
-            const color = extractColor(f.color) || 'black';
-            return `drop-shadow(${x} ${y} ${blur} ${color})`;
-          }
-          default:
-            return null;
-        }
-      })
-      .filter(Boolean)
-      .join(' ');
-  }
-
-  return null;
-}
-
-function extractTransitionProperty(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-  if (Array.isArray(data)) return data.join(', ');
-  return 'all';
-}
-
-function extractTransitionDuration(data: unknown): string | null {
-  if (Array.isArray(data)) {
-    return data.map((t) => `${extractMs(t) || 0}ms`).join(', ');
-  }
-  const ms = extractMs(data);
-  return ms !== null ? `${ms}ms` : null;
-}
-
-function extractTimingFunction(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((tf) => extractSingleTimingFunction(tf))
-      .filter(Boolean)
-      .join(', ');
-  }
-
-  return extractSingleTimingFunction(data);
-}
-
-function extractSingleTimingFunction(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    if (Array.isArray(obj.cb)) {
-      const [x1, y1, x2, y2] = obj.cb;
-      return `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`;
-    }
-
-    if (typeof obj.steps === 'number') {
-      const jump = (obj.jumpTerm as string) || 'end';
-      return `steps(${obj.steps}, ${jump})`;
-    }
-
-    if (obj.type === 'linear') return 'linear';
-
-    if (typeof obj.original === 'string') return obj.original;
-  }
-
-  return null;
-}
-
-function extractBoxShadow(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((shadow) => {
-        const s = shadow as Record<string, unknown>;
-        const inset = s.inset ? 'inset ' : '';
-        const x = extractLength(s.x) || '0';
-        const y = extractLength(s.y) || '0';
-        const blur = extractLength(s.blur) || '0';
-        const spread = extractLength(s.spread) || '0';
-        const color = extractColor(s.c) || extractColor(s.color) || 'rgba(0,0,0,0.25)';
-        return `${inset}${x} ${y} ${blur} ${spread} ${color}`;
-      })
-      .join(', ');
-  }
-
-  return null;
-}
-
-function extractTextShadow(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((shadow) => {
-        const s = shadow as Record<string, unknown>;
-        const x = extractLength(s.x) || '0';
-        const y = extractLength(s.y) || '0';
-        const blur = extractLength(s.blur) || '0';
-        const color = extractColor(s.c) || extractColor(s.color) || 'rgba(0,0,0,0.25)';
-        return `${x} ${y} ${blur} ${color}`;
-      })
-      .join(', ');
-  }
-
-  return null;
-}
-
-function extractBackgroundImage(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (Array.isArray(data)) {
-    return data
-      .map((img) => {
-        const i = img as Record<string, unknown>;
-        const type = i.type as string;
-
-        if (type === 'none') return 'none';
-        if (type === 'url') return `url(${i.url})`;
-
-        if (type?.includes('gradient')) {
-          return extractGradient(i);
-        }
-
-        return null;
-      })
-      .filter(Boolean)
-      .join(', ');
-  }
-
-  return null;
-}
-
-function extractGradient(data: Record<string, unknown>): string {
-  const type = data.type as string;
-  const stops = extractGradientStops(data.stops as unknown[]);
-
-  if (type === 'linear-gradient' || type === 'repeating-linear-gradient') {
-    const angle = extractDegrees(data.angle) ?? 180;
-    const prefix = type === 'repeating-linear-gradient' ? 'repeating-' : '';
-    return `${prefix}linear-gradient(${angle}deg, ${stops})`;
-  }
-
-  if (type === 'radial-gradient' || type === 'repeating-radial-gradient') {
-    const pos = data.position as Record<string, unknown> | undefined;
-    const x = pos?.x ?? 50;
-    const y = pos?.y ?? 50;
-    const prefix = type === 'repeating-radial-gradient' ? 'repeating-' : '';
-    return `${prefix}radial-gradient(circle at ${x}% ${y}%, ${stops})`;
-  }
-
-  if (type === 'conic-gradient' || type === 'repeating-conic-gradient') {
-    const fromAngle = extractDegrees(data.fromAngle) ?? 0;
-    const pos = data.position as Record<string, unknown> | undefined;
-    const x = pos?.x ?? 50;
-    const y = pos?.y ?? 50;
-    const prefix = type === 'repeating-conic-gradient' ? 'repeating-' : '';
-    return `${prefix}conic-gradient(from ${fromAngle}deg at ${x}% ${y}%, ${stops})`;
-  }
-
-  return 'none';
-}
-
-function extractGradientStops(stops: unknown[] | undefined): string {
-  if (!stops) return 'transparent, transparent';
-
-  // Filter out corrupted stops (e.g. "from" parsed as a color from conic-gradient)
-  const cssColorKeywords = new Set([
-    'transparent', 'currentcolor', 'inherit',
-    'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink', 'white', 'black',
-    'cyan', 'magenta', 'gray', 'grey', 'coral', 'navy', 'teal', 'lime', 'aqua',
-    'maroon', 'olive', 'silver', 'fuchsia', 'crimson', 'salmon', 'tomato',
-    'gold', 'khaki', 'plum', 'orchid', 'violet', 'indigo', 'sienna', 'peru',
-    'tan', 'wheat', 'beige', 'linen', 'ivory', 'snow', 'azure', 'honeydew',
-  ]);
-
-  const isValidColor = (c: string) =>
-    c.startsWith('#') || c.startsWith('rgb') || c.startsWith('hsl') ||
-    cssColorKeywords.has(c.toLowerCase());
-
-  return stops
-    .map((stop) => {
-      const s = stop as Record<string, unknown>;
-      const color = extractColor(s.color);
-      if (!color || !isValidColor(color)) return null;
-      const position = s.position;
-      return (position !== null && position !== undefined && typeof position === 'number')
-        ? `${color} ${position}%`
-        : color;
-    })
-    .filter(Boolean)
-    .join(', ') || 'transparent, transparent';
-}
-
-function extractBackgroundSize(data: unknown): string | null {
-  const keyword = extractKeyword(data);
-  if (keyword) return keyword.toLowerCase();
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    const width = extractLength(obj.width) || 'auto';
-    const height = extractLength(obj.height) || 'auto';
-    return `${width} ${height}`;
-  }
-
-  return null;
-}
-
-function extractBackgroundPosition(data: unknown): string | null {
-  const keyword = extractKeyword(data);
-  if (keyword) return keyword.toLowerCase();
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    const x = obj.x ?? 50;
-    const y = obj.y ?? 50;
-    return `${x}% ${y}%`;
-  }
-
-  return null;
-}
-
-function extractClipPath(data: unknown): string | null {
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-
-    if (obj.type === 'none') return 'none';
-
-    if (obj.type === 'circle') {
-      const r = extractLength(obj.radius) || '50%';
-      const pos = obj.position as Record<string, unknown> | undefined;
-      const at = pos ? `at ${pos.x ?? 50}% ${pos.y ?? 50}%` : '';
-      return `circle(${r} ${at})`.trim();
-    }
-
-    if (obj.type === 'ellipse') {
-      const rx = extractLength(obj.radiusX) || '50%';
-      const ry = extractLength(obj.radiusY) || '50%';
-      return `ellipse(${rx} ${ry})`;
-    }
-
-    if (obj.type === 'inset') {
-      const top = extractLength(obj.top) || '0';
-      const right = extractLength(obj.right) || '0';
-      const bottom = extractLength(obj.bottom) || '0';
-      const left = extractLength(obj.left) || '0';
-      return `inset(${top} ${right} ${bottom} ${left})`;
-    }
-
-    if (obj.type === 'polygon' && Array.isArray(obj.points)) {
-      const points = obj.points
-        .map((p) => {
-          const pt = p as Record<string, unknown>;
-          // Support both {x, y} objects and [x, y] arrays
-          const x = pt.x ?? (pt as unknown as number[])[0] ?? 0;
-          const y = pt.y ?? (pt as unknown as number[])[1] ?? 0;
-          return `${x}% ${y}%`;
-        })
-        .join(', ');
-      return `polygon(${points})`;
-    }
-
-    if (obj.type === 'path' && typeof obj.d === 'string') {
-      return `path("${obj.d}")`;
-    }
-  }
-
-  return null;
-}
-
-function extractAspectRatio(data: unknown): string | null {
-  if (typeof data === 'number') return String(data);
-  if (typeof data === 'string') return data;
-
-  if (typeof data === 'object' && data !== null) {
-    const obj = data as Record<string, unknown>;
-    if (typeof obj.width === 'number' && typeof obj.height === 'number') {
-      return `${obj.width} / ${obj.height}`;
-    }
-    if (typeof obj.ratio === 'number') {
-      return String(obj.ratio);
-    }
-  }
-
-  return null;
-}
+// Legacy extractClipPath removed in Phase 8 — see engine/effects/clip/ClipPath*.
+// Legacy legacyExtractBackgroundPosition / extractAspectRatio removed in Phase 10 —
+// ObjectPosition now goes through engine/images/ObjectPosition* and AspectRatio
+// has been handled by Phase-3 sizing engine since migration.

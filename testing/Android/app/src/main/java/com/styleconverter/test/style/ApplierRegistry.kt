@@ -32,10 +32,10 @@ object ApplierRegistry {
 
     /**
      * Sizing appliers for width, height, min/max constraints.
-     * @see com.styleconverter.test.style.layout.sizing.SizingApplier
+     * @see com.styleconverter.test.style.sizing.SizingApplier
      */
     object Sizing {
-        const val PACKAGE = "com.styleconverter.test.style.layout.sizing"
+        const val PACKAGE = "com.styleconverter.test.style.sizing"
         val appliers = listOf("SizingApplier")
         val cssProperties = listOf(
             "width", "height",
@@ -60,10 +60,10 @@ object ApplierRegistry {
 
     /**
      * Spacing appliers for padding and margin.
-     * @see com.styleconverter.test.style.layout.spacing.SpacingApplier
+     * @see com.styleconverter.test.style.spacing.SpacingApplier
      */
     object Spacing {
-        const val PACKAGE = "com.styleconverter.test.style.layout.spacing"
+        const val PACKAGE = "com.styleconverter.test.style.spacing"
         val appliers = listOf("SpacingApplier")
         val cssProperties = listOf(
             "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
@@ -74,10 +74,10 @@ object ApplierRegistry {
 
     /**
      * Overflow handling appliers.
-     * @see com.styleconverter.test.style.layout.overflow.OverflowApplier
+     * @see com.styleconverter.test.style.scrolling.OverflowApplier
      */
     object Overflow {
-        const val PACKAGE = "com.styleconverter.test.style.layout.overflow"
+        const val PACKAGE = "com.styleconverter.test.style.scrolling"
         val appliers = listOf("OverflowApplier")
         val cssProperties = listOf(
             "overflow", "overflow-x", "overflow-y",
@@ -87,10 +87,10 @@ object ApplierRegistry {
 
     /**
      * Flexbox layout appliers.
-     * @see com.styleconverter.test.style.layout.flex.FlexApplier
+     * @see com.styleconverter.test.style.layout.flexbox.FlexApplier
      */
     object Flex {
-        const val PACKAGE = "com.styleconverter.test.style.layout.flex"
+        const val PACKAGE = "com.styleconverter.test.style.layout.flexbox"
         val appliers = listOf("FlexApplier")
         val cssProperties = listOf(
             "display", "flex-direction", "flex-wrap", "flex-flow",
@@ -118,10 +118,10 @@ object ApplierRegistry {
 
     /**
      * Multi-column layout appliers.
-     * @see com.styleconverter.test.style.layout.columns.MultiColumnApplier
+     * @see com.styleconverter.test.style.columns.MultiColumnApplier
      */
     object MultiColumn {
-        const val PACKAGE = "com.styleconverter.test.style.layout.columns"
+        const val PACKAGE = "com.styleconverter.test.style.columns"
         val appliers = listOf("MultiColumnApplier")
         val cssProperties = listOf(
             "column-count", "column-width", "columns",
@@ -133,10 +133,10 @@ object ApplierRegistry {
 
     /**
      * Container query appliers.
-     * @see com.styleconverter.test.style.layout.container.ContainerQueryApplier
+     * @see com.styleconverter.test.style.container.ContainerQueryApplier
      */
     object ContainerQuery {
-        const val PACKAGE = "com.styleconverter.test.style.layout.container"
+        const val PACKAGE = "com.styleconverter.test.style.container"
         val appliers = listOf("ContainerQueryApplier")
         val cssProperties = listOf(
             "container-type", "container-name", "container"
@@ -149,12 +149,12 @@ object ApplierRegistry {
 
     /**
      * Color appliers for background, foreground, and accent colors.
-     * @see com.styleconverter.test.style.appearance.colors.ColorApplier
-     * @see com.styleconverter.test.style.appearance.colors.AccentApplier
-     * @see com.styleconverter.test.style.appearance.colors.BackgroundBoxApplier
+     * @see com.styleconverter.test.style.color.ColorApplier
+     * @see com.styleconverter.test.style.color.AccentApplier
+     * @see com.styleconverter.test.style.background.BackgroundBoxApplier
      */
     object Colors {
-        const val PACKAGE = "com.styleconverter.test.style.appearance.colors"
+        const val PACKAGE = "com.styleconverter.test.style.color"
         val appliers = listOf("ColorApplier", "AccentApplier", "BackgroundBoxApplier")
         val cssProperties = listOf(
             "color", "background-color", "opacity",
@@ -169,13 +169,13 @@ object ApplierRegistry {
 
     /**
      * Border appliers for all border-related properties.
-     * @see com.styleconverter.test.style.appearance.borders.sides.BorderSideApplier
-     * @see com.styleconverter.test.style.appearance.borders.radius.BorderRadiusApplier
-     * @see com.styleconverter.test.style.appearance.borders.image.BorderImageApplier
-     * @see com.styleconverter.test.style.appearance.borders.outline.OutlineApplier
+     * @see com.styleconverter.test.style.borders.sides.BorderSideApplier
+     * @see com.styleconverter.test.style.borders.radius.BorderRadiusApplier
+     * @see com.styleconverter.test.style.borders.image.BorderImageApplier
+     * @see com.styleconverter.test.style.borders.outline.OutlineApplier
      */
     object Borders {
-        const val PACKAGE = "com.styleconverter.test.style.appearance.borders"
+        const val PACKAGE = "com.styleconverter.test.style.borders"
         val appliers = listOf(
             "sides/BorderSideApplier",
             "radius/BorderRadiusApplier",
@@ -197,12 +197,12 @@ object ApplierRegistry {
 
     /**
      * Shadow appliers including multiple shadow support.
-     * @see com.styleconverter.test.style.appearance.effects.shadow.ShadowApplier
-     * @see com.styleconverter.test.style.platform.workarounds.MultipleShadowApplier
-     * @see com.styleconverter.test.style.platform.workarounds.TextShadowApplier
+     * @see com.styleconverter.test.style.effects.shadow.ShadowApplier
+     * @see com.styleconverter.test.style.effects.shadow.MultipleShadowApplier
+     * @see com.styleconverter.test.style.typography.TextShadowApplier
      */
     object Shadows {
-        const val PACKAGE = "com.styleconverter.test.style.appearance.effects.shadow"
+        const val PACKAGE = "com.styleconverter.test.style.effects.shadow"
         val appliers = listOf(
             "ShadowApplier",
             "platform/workarounds/MultipleShadowApplier",
@@ -215,11 +215,11 @@ object ApplierRegistry {
 
     /**
      * Filter appliers for blur, brightness, contrast, etc.
-     * @see com.styleconverter.test.style.appearance.effects.filters.FilterApplier
-     * @see com.styleconverter.test.style.platform.workarounds.BackdropBlurApplier
+     * @see com.styleconverter.test.style.effects.filter.FilterApplier
+     * @see com.styleconverter.test.style.effects.filter.BackdropBlurApplier
      */
     object Filters {
-        const val PACKAGE = "com.styleconverter.test.style.appearance.effects.filters"
+        const val PACKAGE = "com.styleconverter.test.style.effects.filter"
         val appliers = listOf(
             "FilterApplier",
             "platform/workarounds/BackdropBlurApplier"
@@ -233,12 +233,12 @@ object ApplierRegistry {
 
     /**
      * Clipping and masking appliers.
-     * @see com.styleconverter.test.style.appearance.effects.clip.ClipPathApplier
-     * @see com.styleconverter.test.style.appearance.effects.mask.MaskApplier
-     * @see com.styleconverter.test.style.appearance.effects.shapes.ShapeApplier
+     * @see com.styleconverter.test.style.effects.clip.ClipPathApplier
+     * @see com.styleconverter.test.style.effects.mask.MaskApplier
+     * @see com.styleconverter.test.style.shapes.ShapeApplier
      */
     object ClipAndMask {
-        const val PACKAGE = "com.styleconverter.test.style.appearance.effects"
+        const val PACKAGE = "com.styleconverter.test.style.effects"
         val appliers = listOf(
             "clip/ClipPathApplier",
             "mask/MaskApplier",
@@ -257,12 +257,12 @@ object ApplierRegistry {
 
     /**
      * Transform appliers for 2D and 3D transforms.
-     * @see com.styleconverter.test.style.appearance.transforms.TransformApplier
-     * @see com.styleconverter.test.style.appearance.transforms.Transform3DApplier
-     * @see com.styleconverter.test.style.platform.workarounds.SkewTransformApplier
+     * @see com.styleconverter.test.style.transforms.TransformApplier
+     * @see com.styleconverter.test.style.transforms.Transform3DApplier
+     * @see com.styleconverter.test.style.transforms.SkewTransformApplier
      */
     object Transforms {
-        const val PACKAGE = "com.styleconverter.test.style.appearance.transforms"
+        const val PACKAGE = "com.styleconverter.test.style.transforms"
         val appliers = listOf(
             "TransformApplier",
             "Transform3DApplier",
@@ -282,10 +282,10 @@ object ApplierRegistry {
 
     /**
      * Image appliers for object-fit and object-position.
-     * @see com.styleconverter.test.style.appearance.images.ObjectFitApplier
+     * @see com.styleconverter.test.style.images.ObjectFitApplier
      */
     object Images {
-        const val PACKAGE = "com.styleconverter.test.style.appearance.images"
+        const val PACKAGE = "com.styleconverter.test.style.images"
         val appliers = listOf("ObjectFitApplier")
         val cssProperties = listOf(
             "object-fit", "object-position"
@@ -294,10 +294,10 @@ object ApplierRegistry {
 
     /**
      * SVG appliers for fill, stroke, etc.
-     * @see com.styleconverter.test.style.appearance.svg.SvgApplier
+     * @see com.styleconverter.test.style.svg.SvgApplier
      */
     object Svg {
-        const val PACKAGE = "com.styleconverter.test.style.appearance.svg"
+        const val PACKAGE = "com.styleconverter.test.style.svg"
         val appliers = listOf("SvgApplier")
         val cssProperties = listOf(
             "fill", "stroke", "stroke-width",
@@ -318,10 +318,10 @@ object ApplierRegistry {
      * @see com.styleconverter.test.style.typography.LineClampApplier
      * @see com.styleconverter.test.style.typography.FontVariantApplier
      * @see com.styleconverter.test.style.typography.TextEmphasisApplier
-     * @see com.styleconverter.test.style.typography.text.WritingModeApplier
+     * @see com.styleconverter.test.style.typography.WritingModeApplier
      */
     object Typography {
-        const val PACKAGE = "com.styleconverter.test.style.typography"
+        const val PACKAGE = "com.styleconverter.test.style.math"
         val appliers = listOf(
             "TypographyApplier",
             "TextStyleApplier",
@@ -363,10 +363,10 @@ object ApplierRegistry {
 
     /**
      * Animation and transition appliers.
-     * @see com.styleconverter.test.style.interactive.animations.AnimationApplier
+     * @see com.styleconverter.test.style.animations.AnimationApplier
      */
     object Animations {
-        const val PACKAGE = "com.styleconverter.test.style.interactive.animations"
+        const val PACKAGE = "com.styleconverter.test.style.animations"
         val appliers = listOf("AnimationApplier")
         val cssProperties = listOf(
             "animation", "animation-name", "animation-duration",
@@ -380,10 +380,10 @@ object ApplierRegistry {
 
     /**
      * User interaction appliers.
-     * @see com.styleconverter.test.style.interactive.interactions.InteractionApplier
+     * @see com.styleconverter.test.style.interactions.InteractionApplier
      */
     object Interactions {
-        const val PACKAGE = "com.styleconverter.test.style.interactive.interactions"
+        const val PACKAGE = "com.styleconverter.test.style.interactions"
         val appliers = listOf("InteractionApplier")
         val cssProperties = listOf(
             "cursor", "pointer-events", "user-select",
@@ -393,10 +393,10 @@ object ApplierRegistry {
 
     /**
      * Form styling appliers.
-     * @see com.styleconverter.test.style.interactive.forms.FormStylingApplier
+     * @see com.styleconverter.test.style.interactions.forms.FormStylingApplier
      */
     object FormStyling {
-        const val PACKAGE = "com.styleconverter.test.style.interactive.forms"
+        const val PACKAGE = "com.styleconverter.test.style.interactions.forms"
         val appliers = listOf("FormStylingApplier")
         val cssProperties = listOf(
             "accent-color", "caret-color", "color-scheme",
@@ -406,12 +406,12 @@ object ApplierRegistry {
 
     /**
      * Scroll-related appliers.
-     * @see com.styleconverter.test.style.layout.scroll.ScrollApplier
-     * @see com.styleconverter.test.style.layout.scroll.ScrollTimelineApplier
-     * @see com.styleconverter.test.style.layout.scroll.ViewTimelineApplier
+     * @see com.styleconverter.test.style.scrolling.ScrollApplier
+     * @see com.styleconverter.test.style.scrolling.ScrollTimelineApplier
+     * @see com.styleconverter.test.style.scrolling.ViewTimelineApplier
      */
     object Scroll {
-        const val PACKAGE = "com.styleconverter.test.style.layout.scroll"
+        const val PACKAGE = "com.styleconverter.test.style.scrolling"
         val appliers = listOf(
             "ScrollApplier",
             "ScrollTimelineApplier",
@@ -432,10 +432,10 @@ object ApplierRegistry {
 
     /**
      * List style appliers.
-     * @see com.styleconverter.test.style.content.lists.ListStyleApplier
+     * @see com.styleconverter.test.style.lists.ListStyleApplier
      */
     object Lists {
-        const val PACKAGE = "com.styleconverter.test.style.content.lists"
+        const val PACKAGE = "com.styleconverter.test.style.lists"
         val appliers = listOf("ListStyleApplier")
         val cssProperties = listOf(
             "list-style", "list-style-type", "list-style-position", "list-style-image"
@@ -444,10 +444,10 @@ object ApplierRegistry {
 
     /**
      * Table layout appliers.
-     * @see com.styleconverter.test.style.content.tables.TableApplier
+     * @see com.styleconverter.test.style.table.TableApplier
      */
     object Tables {
-        const val PACKAGE = "com.styleconverter.test.style.content.tables"
+        const val PACKAGE = "com.styleconverter.test.style.table"
         val appliers = listOf("TableApplier")
         val cssProperties = listOf(
             "display", "table-layout", "border-collapse", "border-spacing",
@@ -461,10 +461,10 @@ object ApplierRegistry {
 
     /**
      * Performance optimization appliers.
-     * @see com.styleconverter.test.style.platform.performance.PerformanceApplier
+     * @see com.styleconverter.test.style.performance.PerformanceApplier
      */
     object Performance {
-        const val PACKAGE = "com.styleconverter.test.style.platform.performance"
+        const val PACKAGE = "com.styleconverter.test.style.performance"
         val appliers = listOf("PerformanceApplier")
         val cssProperties = listOf(
             "will-change", "contain", "content-visibility"
@@ -473,10 +473,14 @@ object ApplierRegistry {
 
     /**
      * Platform-specific workarounds for unsupported features.
-     * @see com.styleconverter.test.style.platform.workarounds
+     * @see com.styleconverter.test.style.effects.filter.BackdropBlurApplier
+     * @see com.styleconverter.test.style.effects.shadow.MultipleShadowApplier
+     * @see com.styleconverter.test.style.transforms.SkewTransformApplier
+     * @see com.styleconverter.test.style.typography.TextShadowApplier
      */
     object Workarounds {
-        const val PACKAGE = "com.styleconverter.test.style.platform.workarounds"
+        // Workaround appliers are split across effects/, transforms/, and typography/.
+        const val PACKAGE = "com.styleconverter.test.style"
         val appliers = listOf(
             "BackdropBlurApplier",
             "MultipleShadowApplier",

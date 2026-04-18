@@ -1,6 +1,7 @@
 package com.styleconverter.test.style.typography
 
 import androidx.compose.ui.unit.dp
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -10,6 +11,26 @@ import kotlinx.serialization.json.intOrNull
  * Extracts text formatting configuration from IR properties.
  */
 object TextFormattingExtractor {
+
+    init {
+        // Claim the CSS-Text-4 formatting family: text-transform, white-space
+        // (incl. the new split white-space-collapse), word-break/overflow-wrap,
+        // hyphens, tab-size, text-indent. All feed TextFormattingConfig which
+        // TextStyleApplier reads when composing the final TextStyle.
+        // CSS spec: https://drafts.csswg.org/css-text-4/#transforming
+        PropertyRegistry.migrated(
+            "TextTransform",
+            "WhiteSpace",
+            "WhiteSpaceCollapse",
+            "WordBreak",
+            "OverflowWrap",
+            "WordWrap",
+            "Hyphens",
+            "TabSize",
+            "TextIndent",
+            owner = "typography"
+        )
+    }
 
     fun extractTextFormattingConfig(properties: List<Pair<String, JsonElement?>>): TextFormattingConfig {
         var textTransform = TextTransformValue.NONE

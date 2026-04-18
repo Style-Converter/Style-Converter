@@ -25,27 +25,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.styleconverter.test.style.core.ir.IRComponent
+import com.styleconverter.test.style.layout.grid.GridRenderer
 import com.styleconverter.test.style.core.ir.IRProperty
 import com.styleconverter.test.style.core.types.ValueExtractors
 import com.styleconverter.test.style.StyleApplier
-import com.styleconverter.test.style.layout.overflow.OverflowExtractor
+import com.styleconverter.test.style.scrolling.OverflowExtractor
 import kotlinx.serialization.json.jsonPrimitive
-import com.styleconverter.test.style.content.lists.ListStyleExtractor
-import com.styleconverter.test.style.content.lists.ListStyleApplier as StyleListApplier
+import com.styleconverter.test.style.lists.ListStyleExtractor
+import com.styleconverter.test.style.lists.ListStyleApplier as StyleListApplier
 import com.styleconverter.test.style.typography.TextStyleApplier
-import com.styleconverter.test.style.interactive.animations.AnimationExtractor
-import com.styleconverter.test.style.interactive.animations.animatedModifier
-import com.styleconverter.test.style.layout.container.ContainerQueryApplier
-import com.styleconverter.test.style.layout.container.ContainerQueryExtractor
-import com.styleconverter.test.style.layout.columns.MultiColumnApplier
-import com.styleconverter.test.style.layout.columns.MultiColumnExtractor
-import com.styleconverter.test.style.content.tables.TableApplier
-import com.styleconverter.test.style.content.tables.TableApplier.TableCell
-import com.styleconverter.test.style.content.tables.TableExtractor
-import com.styleconverter.test.style.appearance.borders.image.BorderImageApplier
-import com.styleconverter.test.style.appearance.borders.image.BorderImageExtractor
-import com.styleconverter.test.style.interactive.forms.FormStylingApplier
-import com.styleconverter.test.style.interactive.forms.FormStylingExtractor
+import com.styleconverter.test.style.animations.AnimationExtractor
+import com.styleconverter.test.style.animations.animatedModifier
+import com.styleconverter.test.style.container.ContainerQueryApplier
+import com.styleconverter.test.style.container.ContainerQueryExtractor
+import com.styleconverter.test.style.columns.MultiColumnApplier
+import com.styleconverter.test.style.columns.MultiColumnExtractor
+import com.styleconverter.test.style.table.TableApplier
+import com.styleconverter.test.style.table.TableApplier.TableCell
+import com.styleconverter.test.style.table.TableExtractor
+import com.styleconverter.test.style.borders.image.BorderImageApplier
+import com.styleconverter.test.style.borders.image.BorderImageExtractor
+import com.styleconverter.test.style.interactions.forms.FormStylingApplier
+import com.styleconverter.test.style.interactions.forms.FormStylingExtractor
 import com.styleconverter.test.style.content.ContentApplier
 import com.styleconverter.test.style.content.ContentExtractor
 import com.styleconverter.test.style.content.CounterStateProvider
@@ -84,6 +85,15 @@ object ComponentRenderer {
         // Extract property pairs for extractors
         val propertyPairs = effectiveProperties.map { it.type to it.data }
 
+        // Phase 7 step 1: style-engine layout hook (no-op short-circuit).
+        // extractLayoutConfig() returns LayoutConfig.Empty in step 1, and
+        // containerDecision() returns ContainerDecision.default which the
+        // renderer treats as "defer to legacy path." Populated in later steps.
+        val layoutConfig = com.styleconverter.test.style.layout.LayoutFacade.extractLayoutConfig(propertyPairs)
+        val engineDecision = com.styleconverter.test.style.layout.LayoutFacade.containerDecision(layoutConfig)
+        // Step 1: engineDecision is always .default; legacy path still runs unchanged.
+        // Follow-up steps (flexbox/grid/position) will populate this.
+
         // Extract data outside composable scope with error handling
         val baseModifier = try {
             StyleApplier.applyProperties(effectiveProperties)
@@ -118,7 +128,7 @@ object ComponentRenderer {
 
         // Apply animations to modifier if present
         val modifier = if (animationConfig?.hasAnimations == true) {
-            animatedModifier(sizedModifier, animationConfig, transitionConfig ?: com.styleconverter.test.style.interactive.animations.TransitionConfig())
+            animatedModifier(sizedModifier, animationConfig, transitionConfig ?: com.styleconverter.test.style.animations.TransitionConfig())
         } else {
             sizedModifier
         }
@@ -177,6 +187,15 @@ object ComponentRenderer {
             null
         }
 
+        // Phase 7b: unpack any FlexDecision the style engine produced. When
+        // present, RenderComponentContent takes a dedicated flex branch that
+        // uses engine-computed Arrangement / Alignment instead of the
+        // legacy DisplayConfig path. When absent (null), the legacy path
+        // still runs unchanged — preserves zero-behavioural-change for
+        // every component that doesn't set display:flex.
+        val flexDecision = engineDecision.arrangement
+            as? com.styleconverter.test.style.layout.flexbox.FlexDecision
+
         // Wrap content with direction if not default LTR
         val content: @Composable () -> Unit = {
             // Wrap in BorderImageBox if border image is configured
@@ -185,10 +204,10 @@ object ComponentRenderer {
                     config = borderImageConfig,
                     modifier = modifier
                 ) {
-                    RenderComponentContent(component, Modifier, displayConfig, textColor)
+                    RenderComponentContent(component, Modifier, displayConfig, textColor, engineDecision, flexDecision)
                 }
             } else {
-                RenderComponentContent(component, modifier, displayConfig, textColor)
+                RenderComponentContent(component, modifier, displayConfig, textColor, engineDecision, flexDecision)
             }
         }
 
@@ -257,8 +276,75 @@ object ComponentRenderer {
         component: IRComponent,
         modifier: Modifier,
         displayConfig: DisplayConfig,
-        textColor: Color?
+        textColor: Color?,
+        engineDecision: com.styleconverter.test.style.layout.ContainerDecision =
+            com.styleconverter.test.style.layout.ContainerDecision.default,
+        flexDecision: com.styleconverter.test.style.layout.flexbox.FlexDecision? = null
     ) {
+        // Phase 7b engine-driven flex branch. Only activates when the
+        // style-engine produced a FlexDecision; falls through to the legacy
+        // displayConfig switch otherwise.
+        if (engineDecision.kind == com.styleconverter.test.style.layout.ContainerKind.None) {
+            // display: none — suppress rendering entirely.
+            return
+        }
+        if (flexDecision != null &&
+            engineDecision.kind == com.styleconverter.test.style.layout.ContainerKind.Flex
+        ) {
+            // Re-use legacy gap extraction — gap isn't owned by the flex
+            // sub-config yet (TODO phase7/step5 folds spacing into LayoutConfig).
+            val rowGap = displayConfig.rowGap
+            val columnGap = displayConfig.columnGap
+            when (flexDecision.kind) {
+                com.styleconverter.test.style.layout.flexbox.FlexContainerKind.Row -> {
+                    Row(
+                        modifier = modifier,
+                        horizontalArrangement = if (columnGap > 0.dp)
+                            Arrangement.spacedBy(columnGap)
+                        else flexDecision.horizontalArrangement,
+                        verticalAlignment = flexDecision.verticalAlignment
+                    ) {
+                        RenderRowContent(component, textColor)
+                    }
+                    return
+                }
+                com.styleconverter.test.style.layout.flexbox.FlexContainerKind.Column -> {
+                    Column(
+                        modifier = modifier,
+                        verticalArrangement = if (rowGap > 0.dp)
+                            Arrangement.spacedBy(rowGap)
+                        else flexDecision.verticalArrangement,
+                        horizontalAlignment = flexDecision.horizontalAlignment
+                    ) {
+                        RenderColumnContent(component, textColor)
+                    }
+                    return
+                }
+                com.styleconverter.test.style.layout.flexbox.FlexContainerKind.FlowRow -> {
+                    FlowRow(
+                        modifier = modifier,
+                        horizontalArrangement = flexDecision.horizontalArrangement,
+                        verticalArrangement = Arrangement.spacedBy(rowGap)
+                    ) {
+                        RenderContent(component, textColor, displayConfig)
+                    }
+                    return
+                }
+                com.styleconverter.test.style.layout.flexbox.FlexContainerKind.FlowColumn -> {
+                    FlowColumn(
+                        modifier = modifier,
+                        verticalArrangement = flexDecision.verticalArrangement,
+                        horizontalArrangement = Arrangement.spacedBy(columnGap)
+                    ) {
+                        RenderContent(component, textColor, displayConfig)
+                    }
+                    return
+                }
+                // Box / None already handled above (None) or fall through to
+                // the legacy switch below (Box).
+                else -> Unit
+            }
+        }
         when (displayConfig.type) {
             DisplayType.NONE -> {
                 // Don't render anything

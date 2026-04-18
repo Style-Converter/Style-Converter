@@ -11,6 +11,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -70,6 +71,84 @@ import kotlinx.serialization.json.jsonPrimitive
  * ```
  */
 object TypographyExtractor {
+
+    init {
+        // Phase 6: claim the entire CSS Fonts + CSS Text + CSS Text-Decoration
+        // surface that this monolithic extractor (plus its TextEmphasis,
+        // FontVariant, FontSynthesis companions) already handles, plus the
+        // long tail of spec properties we parse but do not yet render on
+        // Compose. Registration here is what stops the legacy PropertyApplier
+        // switch from re-handling these IDs — rendering happens inside
+        // TextStyleApplier / TextFormattingApplier downstream.
+        //
+        // Sibling extractors own the five sub-families we delegate to:
+        //   typography/advanced → AlignmentBaseline, BaselineShift, …
+        //   typography/ruby     → Ruby*
+        //   typography/text     → WritingMode, TextWrap*, HyphenateLimit*, …
+        //   typography          → TextTransform, WhiteSpace, … (TextFormattingExtractor)
+        //
+        // CSS specs:
+        //   Fonts 4          https://drafts.csswg.org/css-fonts-4/
+        //   Text 4           https://drafts.csswg.org/css-text-4/
+        //   Text-Decoration 4 https://drafts.csswg.org/css-text-decor-4/
+        //   Inline 3         https://drafts.csswg.org/css-inline-3/
+        PropertyRegistry.migrated(
+            // ---- Core font descriptors (rendered via Compose TextStyle) ----
+            "FontFamily", "FontSize", "FontWeight", "FontStyle", "FontStretch",
+            // ---- Font variant / feature / synthesis ----
+            // extractFontVariantConfig() and extractFontSynthesisConfig() below.
+            "FontVariantCaps", "FontVariantLigatures", "FontVariantNumeric",
+            "FontVariantEastAsian", "FontVariantEmoji", "FontVariantPosition",
+            "FontVariantAlternates", "FontFeatureSettings", "FontKerning",
+            "FontOpticalSizing", "FontVariationSettings",
+            "FontSynthesisWeight", "FontSynthesisStyle", "FontSynthesisSmallCaps",
+            // FontSynthesisPosition is proposed CSS Fonts 5 — parse-only.
+            "FontSynthesisPosition",
+            // ---- Font identity / metadata (no Compose analogue — parse-only) ----
+            "FontDisplay", "FontLanguageOverride", "FontNamedInstance",
+            "FontPalette", "FontSizeAdjust", "FontSmooth",
+            "FontMinSize", "FontMaxSize",
+            // ---- Caret (routed to AccentExtractor for actual rendering but
+            //      the IR property lives under typography so we claim it
+            //      here to close the category.) ----
+            "CaretColor",
+            // ---- Core text layout ----
+            "LetterSpacing", "LineHeight", "WordSpacing",
+            "TextAlign", "TextAlignLast", "TextAlignAll", "TextJustify",
+            "TextOverflow",
+            // ---- Text decoration family (rendered via TextDecorationConfig) ----
+            "TextDecorationLine", "TextDecorationColor", "TextDecorationStyle",
+            "TextDecorationThickness", "TextUnderlineOffset", "TextUnderlinePosition",
+            // TextDecorationSkip* are parse-only — Compose has no API for them.
+            "TextDecorationSkip", "TextDecorationSkipInk",
+            // ---- Text emphasis (rendered via TextEmphasisApplier overlay) ----
+            "TextEmphasis", "TextEmphasisStyle", "TextEmphasisColor", "TextEmphasisPosition",
+            // ---- Shadows, vertical-align, line-clamp ----
+            "TextShadow", "VerticalAlign", "VerticalAlignLast",
+            "LineClamp", "MaxLines", "LineBreak",
+            // ---- CSS-Text-4 long tail (parse-only on Compose today) ----
+            "TextAnchor",              // SVG text anchor
+            "TextAutospace",           // CJK autospace
+            "TextBoxEdge", "TextBoxTrim",
+            "TextCombineUpright",      // tate-chu-yoko
+            "TextGroupAlign",
+            "TextRendering",           // geometricPrecision/optimizeSpeed
+            "TextSizeAdjust",          // WebKit text zoom
+            "TextSpaceCollapse", "TextSpaceTrim", "TextSpacing", "TextSpacingTrim",
+            "WordSpaceTransform",
+            "BlockEllipsis",
+            "HangingPunctuation",
+            // ---- Initial-letter / drop-cap (parse-only) ----
+            "InitialLetter", "InitialLetterAlign",
+            // ---- Line grid / snap / height-step (CSS Line Grid 3, parse-only) ----
+            "LineGrid", "LineSnap", "LineHeightStep",
+            // ---- Widows/Orphans — paging-only, parse-only on mobile ----
+            "Orphans", "Widows",
+            // ---- SVG-only kerning + glyph orientation (parse-only) ----
+            "Kerning", "GlyphOrientationHorizontal", "GlyphOrientationVertical",
+            owner = "typography"
+        )
+    }
 
     /**
      * Extract a complete TypographyConfig from a list of property type/data pairs.

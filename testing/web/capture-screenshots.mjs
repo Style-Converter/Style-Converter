@@ -40,7 +40,26 @@ function getArg(name) {
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
-const browser = await puppeteer.launch({ headless: true });
+// `headless: 'new'` uses the modern Chrome/Chromium headless rendering
+// path. The legacy `headless: true` (aka 'shell') suppresses paint / rAF
+// callbacks when no display is attached — that's what was causing
+// `Runtime.callFunctionOn timed out` during per-element screenshots once
+// the page grew beyond ~50 canvases. `'new'` keeps paint running and
+// lets elementHandle.screenshot do its internal bounding-box evaluation
+// reliably.
+//
+// `protocolTimeout` bumped from the 30s default so a slow per-element
+// screenshot loop (109 captures × ~300ms each) doesn't overflow the
+// single-call limit on a cold CI machine.
+const browser = await puppeteer.launch({
+  headless: 'new',
+  protocolTimeout: 180_000,
+  args: [
+    '--disable-background-timer-throttling',
+    '--disable-renderer-backgrounding',
+    '--disable-backgrounding-occluded-windows',
+  ],
+});
 try {
   const page = await browser.newPage();
 
@@ -89,41 +108,97 @@ try {
   await page.evaluate(() =>
     document.fonts?.ready ?? Promise.resolve()
   );
+  // Brief post-render settle. We can't use requestAnimationFrame here —
+  // headless Chrome throttles (and in some versions outright suppresses)
+  // RAF callbacks when the page isn't actually being painted to a display,
+  // which makes an `await page.evaluate(() => new Promise(r => rAF(r)))`
+  // hang until the protocol timeout fires. setTimeout stays on the JS
+  // task queue and is not throttled the same way.
   await page.evaluate(() =>
-    new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+    new Promise((r) => setTimeout(r, 50))
   );
 
   // ── Capture ────────────────────────────────────────────────────────────────
-  // We drive the capture off the document directly rather than via $$() so
-  // detached-handle races don't bite us on large lists.
+  //
+  // We fetch the manifest **and every bounding rect** in a single
+  // `$$eval` up-front, then resize the viewport to the full page height,
+  // take ONE full-page screenshot, and crop N PNGs from it with sharp.
+  //
+  // Why this instead of elementHandle.screenshot()?
+  //   Puppeteer's per-element screenshot path internally calls
+  //   ElementHandle.evaluate(...) to resolve the clip rect, and each
+  //   such call has to round-trip through CDP's Runtime.callFunctionOn.
+  //   When the page grows past ~50 canvases, that per-element evaluate
+  //   starts timing out (`Runtime.callFunctionOn timed out`) on headless
+  //   Chrome — probably paint-gated layout queries getting throttled.
+  //   One page screenshot + N CPU-side sharp crops avoids every single
+  //   one of those round-trips.
   const manifest = await page.$$eval('[data-capture-canvas]', (els) =>
-    els.map((el) => ({
-      index: Number(el.getAttribute('data-capture-index')),
-      id:    el.getAttribute('data-capture-id') ?? '',
-      name:  el.getAttribute('data-capture-name') ?? 'unknown',
-    }))
+    els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return {
+        index: Number(el.getAttribute('data-capture-index')),
+        id:    el.getAttribute('data-capture-id') ?? '',
+        name:  el.getAttribute('data-capture-name') ?? 'unknown',
+        x:     Math.round(r.left),
+        y:     Math.round(r.top + window.scrollY),  // include current scroll offset
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+      };
+    })
   );
 
-  console.log(`  capturing ${manifest.length} canvases → ${outDir}`);
+  // Capture gallery is a flat vertical list starting at (0,0); the page
+  // height is the sum of all canvas heights (~20 000 px for 109 canvases).
+  //
+  // Tried `page.screenshot({ fullPage: true })` — times out on large
+  // pages because Puppeteer internally stitches frame-by-frame.
+  //
+  // Fix: resize the viewport to exactly the document height, then take
+  // a single regular (non-full-page) screenshot. Chrome renders a tall
+  // viewport in one go without the stitching overhead.
+  const pageHeight = await page.evaluate(() => Math.max(
+    document.documentElement.scrollHeight,
+    document.body?.scrollHeight ?? 0,
+  ));
+  await page.setViewport({ width: 390, height: pageHeight, deviceScaleFactor: 1 });
+  // Give layout one tick to settle into the new viewport.
+  await page.evaluate(() => new Promise((r) => setTimeout(r, 50)));
+
+  console.log(`  capturing ${manifest.length} canvases via ${390}×${pageHeight} screenshot → ${outDir}`);
+  const fullPng = await page.screenshot({ type: 'png' });
+
+  // Crop with sharp — CPU-only, no more round-trips to the browser.
+  const sharpMod = await import('sharp');
+  const sharp = sharpMod.default;
   let captured = 0;
   for (const entry of manifest) {
     const safe = entry.name.replace(/[^A-Za-z0-9._-]/g, '_');
     const filename = `${String(entry.index).padStart(3, '0')}_${safe}.png`;
 
-    const handle = await page.$(
-      `[data-capture-canvas][data-capture-index="${entry.index}"]`
-    );
-    if (!handle) {
-      console.warn(`  ⚠ canvas ${entry.index} (${entry.name}) not found`);
+    // Defensive clamp: rects with zero dims (hidden elements) are
+    // skipped so sharp doesn't throw; 0-dim canvases legitimately
+    // shouldn't exist in capture mode but we log if they do.
+    if (entry.width <= 0 || entry.height <= 0) {
+      console.warn(`  ⚠ canvas ${entry.index} (${entry.name}) has zero dimensions — skipping`);
       continue;
     }
 
-    // Scroll into view so element-level screenshots see the final layout.
-    await handle.evaluate((el) =>
-      el.scrollIntoView({ block: 'center', behavior: 'instant' })
-    );
-    await handle.screenshot({ path: resolve(outDir, filename), omitBackground: false });
-    await handle.dispose();
+    // Clamp against the actual screenshot bounds — layout can round a
+    // canvas's bottom edge one pixel past the measured pageHeight (e.g. when
+    // aspect-ratio produces a fractional height), which makes sharp's
+    // extract_area throw "bad extract area". Treat sub-pixel overshoot as
+    // benign and trim to what's actually in the screenshot.
+    const meta = await sharp(fullPng).metadata();
+    const imgW = meta.width  ?? entry.x + entry.width;
+    const imgH = meta.height ?? entry.y + entry.height;
+    const left   = Math.max(0, Math.min(entry.x, imgW - 1));
+    const top    = Math.max(0, Math.min(entry.y, imgH - 1));
+    const width  = Math.max(1, Math.min(entry.width,  imgW - left));
+    const height = Math.max(1, Math.min(entry.height, imgH - top));
+    await sharp(fullPng)
+      .extract({ left, top, width, height })
+      .toFile(resolve(outDir, filename));
     captured += 1;
   }
 

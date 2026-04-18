@@ -101,7 +101,8 @@ fun ScreenshotCaptureScreen(
             val json = Json { ignoreUnknownKeys = true }
             document = json.decodeFromString<IRDocument>(jsonString)
 
-            Log.i(TAG, "Loaded ${document?.components?.size ?: 0} components")
+            Log.i(TAG, "Loaded ${document?.components?.size ?: 0} top-level components " +
+                    "(flattened: ${flattenComponents(document?.components ?: emptyList()).size})")
             capturePhase = CapturePhase.CAPTURING
             currentIndex = 0
         } catch (e: Exception) {
@@ -113,11 +114,15 @@ fun ScreenshotCaptureScreen(
 
     // Capture logic using PixelCopy
     LaunchedEffect(shouldCapture, currentIndex) {
-        if (shouldCapture && document != null && currentIndex >= 0 && currentIndex < document!!.components.size) {
+        // Flatten the IR tree depth-first pre-order so child components become
+        // their own captures — matching iOS `flatten` and web `flatten` exactly.
+        // Filename indices (000_*, 001_*, ...) now align across all 3 platforms.
+        val flat = document?.let { flattenComponents(it.components) } ?: emptyList()
+        if (shouldCapture && document != null && currentIndex >= 0 && currentIndex < flat.size) {
             delay(400) // Wait for rendering + compositing
 
             try {
-                val component = document!!.components[currentIndex]
+                val component = flat[currentIndex]
                 val bounds = cardBoundsInWindow
 
                 val bitmap = if (window != null && bounds != null && bounds.width() > 0 && bounds.height() > 0) {
@@ -146,7 +151,9 @@ fun ScreenshotCaptureScreen(
 
             shouldCapture = false
 
-            if (currentIndex < document!!.components.size - 1) {
+            // Advance through the flattened list (parents + children), not just
+            // the top-level component array — keeps indices in lockstep with iOS/web.
+            if (currentIndex < flat.size - 1) {
                 currentIndex++
             } else {
                 capturePhase = CapturePhase.COMPLETE
@@ -165,11 +172,14 @@ fun ScreenshotCaptureScreen(
             CapturePhase.ERROR -> ErrorView(error ?: "Unknown error")
             CapturePhase.CAPTURING -> {
                 document?.let { doc ->
-                    if (currentIndex >= 0 && currentIndex < doc.components.size) {
+                    // Use the same depth-first flatten as the capture loop so
+                    // the rendered component matches the one being saved.
+                    val flat = flattenComponents(doc.components)
+                    if (currentIndex >= 0 && currentIndex < flat.size) {
                         CaptureView(
-                            component = doc.components[currentIndex],
+                            component = flat[currentIndex],
                             currentIndex = currentIndex,
-                            totalCount = doc.components.size,
+                            totalCount = flat.size,
                             onCardPositioned = { bounds -> cardBoundsInWindow = bounds },
                             onRendered = { shouldCapture = true }
                         )
@@ -457,6 +467,24 @@ private fun CompleteView(
             }
         }
     }
+}
+
+/**
+ * Depth-first pre-order flatten of the IR component tree: parent first, then
+ * each child (recursively), then the next sibling. Mirrors iOS `flatten` in
+ * `ScreenshotCaptureView.swift` and web `flatten` in `CaptureGallery.tsx` so
+ * filename indices (000_*, 001_*, ...) align across all three platforms for
+ * any fixture that uses nested children.
+ */
+private fun flattenComponents(components: List<IRComponent>): List<IRComponent> {
+    val out = mutableListOf<IRComponent>()
+    // Recursive walker — append the node, then descend into its children in order.
+    fun walk(c: IRComponent) {
+        out.add(c)
+        c.children?.forEach(::walk)
+    }
+    components.forEach(::walk)
+    return out
 }
 
 private enum class CapturePhase {

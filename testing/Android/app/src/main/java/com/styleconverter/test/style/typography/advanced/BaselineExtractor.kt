@@ -1,6 +1,7 @@
 package com.styleconverter.test.style.typography.advanced
 
 import androidx.compose.ui.unit.dp
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -13,6 +14,23 @@ import kotlinx.serialization.json.jsonPrimitive
  * Extracts baseline configuration from IR properties.
  */
 object BaselineExtractor {
+
+    init {
+        // Claim the SVG/CSS-Inline-3 baseline family. These values drive
+        // BaselineConfig which is surfaced on TextStyle.baselineShift and
+        // SVG text placement. DominantBaselineAdjust is an experimental spec
+        // alias — we register it so the legacy dispatcher skips it even
+        // though we don't yet have a Compose rendering path for it.
+        // CSS spec: https://drafts.csswg.org/css-inline-3/#baseline-props
+        PropertyRegistry.migrated(
+            "AlignmentBaseline",
+            "BaselineShift",
+            "BaselineSource",
+            "DominantBaseline",
+            "DominantBaselineAdjust",
+            owner = "typography/advanced"
+        )
+    }
 
     /**
      * Extract baseline configuration from property pairs.

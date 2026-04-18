@@ -1,5 +1,6 @@
 package com.styleconverter.test.style.typography.ruby
 
+import com.styleconverter.test.style.PropertyRegistry
 import com.styleconverter.test.style.core.types.ValueExtractors
 import kotlinx.serialization.json.JsonElement
 
@@ -7,6 +8,21 @@ import kotlinx.serialization.json.JsonElement
  * Extracts ruby configuration from IR properties.
  */
 object RubyExtractor {
+
+    init {
+        // Claim the CSS-Ruby-1 family. Compose has no native ruby rendering;
+        // RubyConfig is currently parse-only (we keep the extracted values so
+        // future ruby-aware layouts can read them), but registering here
+        // blocks the legacy dispatcher from emitting warnings for these.
+        // CSS spec: https://drafts.csswg.org/css-ruby-1/
+        PropertyRegistry.migrated(
+            "RubyAlign",
+            "RubyMerge",
+            "RubyOverhang",
+            "RubyPosition",
+            owner = "typography/ruby"
+        )
+    }
 
     /**
      * Extract ruby configuration from property pairs.

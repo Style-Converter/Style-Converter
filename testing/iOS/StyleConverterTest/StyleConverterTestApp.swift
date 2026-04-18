@@ -10,6 +10,49 @@ import SwiftUI
 
 @main
 struct StyleConverterTestApp: App {
+    // Phase 1 primitive extractor self-test. DEBUG-only — zero release cost.
+    // See testing/iOS/StyleConverterTest/StyleEngine/core/types/CoreTypesSelfTest.swift
+    init() {
+        #if DEBUG
+        CoreTypesSelfTest.run()
+        // Phase 2 — spacing extractors + resolver sanity check.
+        SpacingSelfTest.run()
+        // Phase 3 — sizing extractor + applier resolver sanity check.
+        SizingSelfTest.run()
+        // Phase 4 — colour + background + blend + isolation extractors.
+        ColorBackgroundSelfTest.run()
+        // Phase 5 — border family (sides, radius, outline, image, shadow,
+        // misc keywords). See testing/iOS/.../StyleEngine/borders/
+        // BordersSelfTest.swift.
+        BordersSelfTest.run()
+        // Phase 6 — typography family (font + font-variant + line + spacing
+        // + decoration + wrapping + writing + other + grouped unsupported).
+        // See testing/iOS/.../StyleEngine/typography/TypographySelfTest.swift.
+        TypographySelfTest.run()
+        // Phase 7 — layout family scaffold (step 1). Registers 60 layout
+        // property names; extractors/appliers are no-op today and land in
+        // steps 2-5. See testing/iOS/.../StyleEngine/layout/LayoutSelfTest.swift.
+        LayoutSelfTest.run()
+        // Phase 8 — transforms family + effects clip/filter/mask +
+        // visibility/overflow. Runs AFTER LayoutSelfTest so the layout
+        // registry drift check is the first failure the developer sees.
+        // Both tests print-only on failure (no assertionFailure / fatal
+        // Error) — ff901e3 hotfix convention.
+        TransformsSelfTest.run()
+        EffectsSelfTest.run()
+        // Phase 9 — animations + transitions + view-timeline +
+        // view-transition + scroll-timeline (25 properties). Runs AFTER
+        // EffectsSelfTest so earlier phase drift surfaces first. Print-
+        // only on failure (ff901e3 hotfix convention).
+        AnimationsSelfTest.run()
+        // Phase 10 — long-tail sweep (~22 categories, ~150 property
+        // names registered via grouped Config/Extractor/Applier
+        // triplets). Runs last so earlier-phase drift surfaces first.
+        // Print-only on failure (ff901e3 convention).
+        Phase10SelfTest.run()
+        #endif
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()

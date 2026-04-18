@@ -56,14 +56,14 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.styleconverter.test.style.interactive.animations.AnimationConfig
-import com.styleconverter.test.style.interactive.animations.AnimationDirection
-import com.styleconverter.test.style.interactive.animations.AnimationFillMode
-import com.styleconverter.test.style.interactive.animations.AnimationIterationCount
-import com.styleconverter.test.style.interactive.animations.AnimationPlayState
-import com.styleconverter.test.style.interactive.animations.CSSKeyframes
-import com.styleconverter.test.style.interactive.animations.Keyframe
-import com.styleconverter.test.style.interactive.animations.TimingFunctionConfig
+import com.styleconverter.test.style.animations.AnimationConfig
+import com.styleconverter.test.style.animations.AnimationDirection
+import com.styleconverter.test.style.animations.AnimationFillMode
+import com.styleconverter.test.style.animations.AnimationIterationCount
+import com.styleconverter.test.style.animations.AnimationPlayState
+import com.styleconverter.test.style.animations.CSSKeyframes
+import com.styleconverter.test.style.animations.Keyframe
+import com.styleconverter.test.style.animations.TimingFunctionConfig
 import kotlin.math.pow
 
 /**

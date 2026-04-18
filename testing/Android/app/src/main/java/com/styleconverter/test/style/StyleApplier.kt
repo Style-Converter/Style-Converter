@@ -2,96 +2,99 @@ package com.styleconverter.test.style
 
 import androidx.compose.ui.Modifier
 import com.styleconverter.test.style.core.ir.IRProperty
-import com.styleconverter.test.style.appearance.borders.BordersFacade
-import com.styleconverter.test.style.appearance.borders.sides.AllBordersConfig
-import com.styleconverter.test.style.appearance.borders.radius.BorderRadiusConfig
-import com.styleconverter.test.style.interactive.animations.AnimationConfig
-import com.styleconverter.test.style.interactive.animations.AnimationExtractor
-import com.styleconverter.test.style.interactive.animations.TransitionConfig
-import com.styleconverter.test.style.appearance.colors.ColorApplier
-import com.styleconverter.test.style.appearance.colors.ColorConfig
-import com.styleconverter.test.style.appearance.colors.ColorExtractor
-import com.styleconverter.test.style.layout.columns.MultiColumnConfig
-import com.styleconverter.test.style.layout.columns.MultiColumnExtractor
+import com.styleconverter.test.style.borders.BordersFacade
+import com.styleconverter.test.style.borders.sides.AllBordersConfig
+import com.styleconverter.test.style.borders.radius.BorderRadiusConfig
+import com.styleconverter.test.style.animations.AnimationConfig
+import com.styleconverter.test.style.animations.AnimationExtractor
+import com.styleconverter.test.style.animations.TransitionConfig
+import com.styleconverter.test.style.color.ColorApplier
+import com.styleconverter.test.style.color.ColorConfig
+import com.styleconverter.test.style.color.ColorExtractor
+import com.styleconverter.test.style.columns.MultiColumnConfig
+import com.styleconverter.test.style.columns.MultiColumnExtractor
 import com.styleconverter.test.style.content.ContentExtractor
 import com.styleconverter.test.style.content.CounterConfig
 import com.styleconverter.test.style.content.QuotesConfig
-import com.styleconverter.test.style.appearance.effects.EffectsFacade
-import com.styleconverter.test.style.interactive.forms.FormStylingConfig
-import com.styleconverter.test.style.interactive.forms.FormStylingExtractor
-import com.styleconverter.test.style.appearance.images.ObjectFitConfig
-import com.styleconverter.test.style.appearance.images.ObjectFitExtractor
-import com.styleconverter.test.style.platform.performance.BoxModelConfig
-import com.styleconverter.test.style.platform.performance.PerformanceConfig
-import com.styleconverter.test.style.platform.performance.PerformanceExtractor
+import com.styleconverter.test.style.effects.EffectsFacade
+import com.styleconverter.test.style.interactions.forms.FormStylingConfig
+import com.styleconverter.test.style.interactions.forms.FormStylingExtractor
+import com.styleconverter.test.style.images.ObjectFitConfig
+import com.styleconverter.test.style.images.ObjectFitExtractor
+import com.styleconverter.test.style.performance.BoxModelConfig
+import com.styleconverter.test.style.performance.PerformanceConfig
+import com.styleconverter.test.style.performance.PerformanceExtractor
 import com.styleconverter.test.style.typography.text.TextExtractor
 import com.styleconverter.test.style.typography.text.TextWrapConfig
 import com.styleconverter.test.style.typography.text.WritingModeApplier
 import com.styleconverter.test.style.typography.text.WritingModeConfig
-import com.styleconverter.test.style.interactive.interactions.InteractionApplier
-import com.styleconverter.test.style.interactive.interactions.InteractionConfig
-import com.styleconverter.test.style.interactive.interactions.InteractionExtractor
+import com.styleconverter.test.style.interactions.InteractionApplier
+import com.styleconverter.test.style.interactions.InteractionConfig
+import com.styleconverter.test.style.interactions.InteractionExtractor
 import com.styleconverter.test.style.layout.LayoutFacade
-import com.styleconverter.test.style.content.lists.ListStyleConfig
-import com.styleconverter.test.style.content.lists.ListStyleExtractor
-import com.styleconverter.test.style.layout.overflow.OverflowApplier
-import com.styleconverter.test.style.layout.overflow.OverflowConfig
-import com.styleconverter.test.style.layout.overflow.OverflowExtractor
-import com.styleconverter.test.style.layout.scroll.ScrollApplier
-import com.styleconverter.test.style.layout.scroll.ScrollConfig
-import com.styleconverter.test.style.layout.scroll.ScrollExtractor
-import com.styleconverter.test.style.content.tables.TableConfig
-import com.styleconverter.test.style.content.tables.TableExtractor
-import com.styleconverter.test.style.appearance.transforms.TransformApplier
-import com.styleconverter.test.style.appearance.transforms.TransformConfig
-import com.styleconverter.test.style.appearance.transforms.TransformExtractor
+import com.styleconverter.test.style.lists.ListStyleConfig
+import com.styleconverter.test.style.lists.ListStyleExtractor
+import com.styleconverter.test.style.scrolling.OverflowApplier
+import com.styleconverter.test.style.scrolling.OverflowConfig
+import com.styleconverter.test.style.scrolling.OverflowExtractor
+import com.styleconverter.test.style.scrolling.ScrollApplier
+import com.styleconverter.test.style.scrolling.ScrollConfig
+import com.styleconverter.test.style.scrolling.ScrollExtractor
+import com.styleconverter.test.style.table.TableConfig
+import com.styleconverter.test.style.table.TableExtractor
+import com.styleconverter.test.style.transforms.TransformApplier
+import com.styleconverter.test.style.transforms.TransformConfig
+import com.styleconverter.test.style.transforms.TransformExtractor
 import com.styleconverter.test.style.typography.TypographyConfig
 import com.styleconverter.test.style.typography.TypographyExtractor
-import com.styleconverter.test.style.appearance.effects.mask.MaskApplier
-import com.styleconverter.test.style.appearance.effects.mask.MaskConfig
-import com.styleconverter.test.style.appearance.effects.mask.MaskExtractor
-import com.styleconverter.test.style.appearance.borders.image.BorderImageConfig
-import com.styleconverter.test.style.appearance.borders.image.BorderImageExtractor
-import com.styleconverter.test.style.appearance.svg.SvgConfig
-import com.styleconverter.test.style.appearance.svg.SvgExtractor
-import com.styleconverter.test.style.layout.container.ContainerQueryConfig
-import com.styleconverter.test.style.layout.container.ContainerQueryExtractor
-import com.styleconverter.test.style.appearance.colors.AccentConfig
-import com.styleconverter.test.style.appearance.colors.AccentExtractor
+import com.styleconverter.test.style.effects.mask.MaskApplier
+import com.styleconverter.test.style.effects.mask.MaskConfig
+import com.styleconverter.test.style.effects.mask.MaskExtractor
+import com.styleconverter.test.style.borders.image.BorderImageConfig
+import com.styleconverter.test.style.borders.image.BorderImageExtractor
+import com.styleconverter.test.style.svg.SvgConfig
+import com.styleconverter.test.style.svg.SvgExtractor
+import com.styleconverter.test.style.container.ContainerQueryConfig
+import com.styleconverter.test.style.container.ContainerQueryExtractor
+import com.styleconverter.test.style.color.AccentConfig
+import com.styleconverter.test.style.color.AccentExtractor
 import com.styleconverter.test.style.layout.FloatConfig
 import com.styleconverter.test.style.layout.FloatExtractor
-import com.styleconverter.test.style.platform.print.PrintConfig
-import com.styleconverter.test.style.platform.print.PrintExtractor
+import com.styleconverter.test.style.print.PrintConfig
+import com.styleconverter.test.style.print.PrintExtractor
 import com.styleconverter.test.style.typography.advanced.BaselineConfig
 import com.styleconverter.test.style.typography.advanced.BaselineExtractor
-import com.styleconverter.test.style.platform.rendering.RenderingConfig
-import com.styleconverter.test.style.platform.rendering.RenderingExtractor
-import com.styleconverter.test.style.appearance.effects.shapes.ShapeConfig
-import com.styleconverter.test.style.appearance.effects.shapes.ShapeExtractor
+import com.styleconverter.test.style.rendering.RenderingConfig
+import com.styleconverter.test.style.rendering.RenderingExtractor
+import com.styleconverter.test.style.shapes.ShapeConfig
+import com.styleconverter.test.style.shapes.ShapeExtractor
 import com.styleconverter.test.style.typography.ruby.RubyConfig
 import com.styleconverter.test.style.typography.ruby.RubyExtractor
-import com.styleconverter.test.style.appearance.transforms.OffsetPathConfig
-import com.styleconverter.test.style.appearance.transforms.OffsetPathExtractor
-import com.styleconverter.test.style.layout.ZoomConfig
-import com.styleconverter.test.style.layout.ZoomExtractor
-import com.styleconverter.test.style.appearance.transforms.Transform3DConfig
-import com.styleconverter.test.style.appearance.transforms.Transform3DExtractor
-import com.styleconverter.test.style.interactive.interactions.SpatialNavigationConfig
-import com.styleconverter.test.style.interactive.interactions.SpatialNavigationExtractor
+import com.styleconverter.test.style.layout.advanced.OffsetPathConfig
+import com.styleconverter.test.style.layout.advanced.OffsetPathExtractor
+import com.styleconverter.test.style.rendering.ZoomConfig
+import com.styleconverter.test.style.rendering.ZoomExtractor
+import com.styleconverter.test.style.transforms.Transform3DConfig
+import com.styleconverter.test.style.transforms.Transform3DExtractor
+import com.styleconverter.test.style.interactions.SpatialNavigationConfig
+import com.styleconverter.test.style.interactions.SpatialNavigationExtractor
 import com.styleconverter.test.style.typography.TextFormattingConfig
 import com.styleconverter.test.style.typography.TextFormattingExtractor
-import com.styleconverter.test.style.platform.accessibility.SpeechConfig
-import com.styleconverter.test.style.platform.accessibility.SpeechExtractor
-import com.styleconverter.test.style.layout.RegionFlowConfig
-import com.styleconverter.test.style.layout.RegionFlowExtractor
-import com.styleconverter.test.style.typography.MathTypographyConfig
-import com.styleconverter.test.style.typography.MathTypographyExtractor
-import com.styleconverter.test.style.layout.scroll.ScrollTimelineConfig
-import com.styleconverter.test.style.layout.scroll.ScrollTimelineExtractor
-import com.styleconverter.test.style.layout.spacing.MarginTrimConfig
-import com.styleconverter.test.style.layout.spacing.MarginTrimExtractor
-import com.styleconverter.test.style.appearance.colors.BackgroundBoxConfig
-import com.styleconverter.test.style.appearance.colors.BackgroundBoxExtractor
+import com.styleconverter.test.style.speech.SpeechConfig
+import com.styleconverter.test.style.speech.SpeechExtractor
+import com.styleconverter.test.style.regions.RegionFlowConfig
+import com.styleconverter.test.style.regions.RegionFlowExtractor
+import com.styleconverter.test.style.math.MathTypographyConfig
+import com.styleconverter.test.style.math.MathTypographyExtractor
+import com.styleconverter.test.style.scrolling.ScrollTimelineConfig
+import com.styleconverter.test.style.scrolling.ScrollTimelineExtractor
+import com.styleconverter.test.style.spacing.MarginTrimConfig
+import com.styleconverter.test.style.spacing.MarginTrimExtractor
+import com.styleconverter.test.style.background.BackgroundBoxConfig
+import com.styleconverter.test.style.background.BackgroundBoxExtractor
+import com.styleconverter.test.style.performance.IsolationApplier
+import com.styleconverter.test.style.performance.IsolationConfig
+import com.styleconverter.test.style.performance.IsolationExtractor
 import com.styleconverter.test.style.typography.TextEmphasisConfig
 import com.styleconverter.test.style.typography.FontVariantConfig
 import com.styleconverter.test.style.typography.FontSynthesisConfig
@@ -227,7 +230,9 @@ object StyleApplier {
         // Typography sub-configs
         val textEmphasis: TextEmphasisConfig = TextEmphasisConfig(),
         val fontVariant: FontVariantConfig = FontVariantConfig(),
-        val fontSynthesis: FontSynthesisConfig = FontSynthesisConfig()
+        val fontSynthesis: FontSynthesisConfig = FontSynthesisConfig(),
+        // Phase 4 addition — CSS isolation (AUTO/ISOLATE). See IsolationConfig.
+        val isolation: IsolationConfig = IsolationConfig()
     ) {
         /**
          * Returns true if any style properties are present.
@@ -279,7 +284,8 @@ object StyleApplier {
                     backgroundBox.hasBackgroundBox ||
                     textEmphasis.hasEmphasis ||
                     fontVariant.hasFontVariant ||
-                    fontSynthesis.hasFontSynthesis
+                    fontSynthesis.hasFontSynthesis ||
+                    isolation.hasIsolation
     }
 
     /**
@@ -366,7 +372,10 @@ object StyleApplier {
             // Typography sub-extractors
             textEmphasis = TypographyExtractor.extractTextEmphasisConfig(properties),
             fontVariant = TypographyExtractor.extractFontVariantConfig(properties),
-            fontSynthesis = TypographyExtractor.extractFontSynthesisConfig(properties)
+            fontSynthesis = TypographyExtractor.extractFontSynthesisConfig(properties),
+            // Isolation is pulled from IsolationExtractor — keeps this module
+            // self-contained and easy to unit test.
+            isolation = IsolationExtractor.extractIsolationConfig(properties)
         )
     }
 
@@ -396,6 +405,12 @@ object StyleApplier {
         // CSS rendering model: transforms, clip, opacity, and visibility apply to the
         // ENTIRE element (including background). In Compose, modifier order is outer→inner,
         // so these "whole-element" effects must come FIRST (outermost) in the chain.
+
+        // 0. Isolation — `isolation: isolate` creates a new stacking/blending
+        //    context. We apply it as the outermost modifier so the offscreen
+        //    compositing boundary wraps everything this element paints,
+        //    preventing mix-blend-mode inside from leaking through to ancestors.
+        result = IsolationApplier.applyIsolation(result, config.isolation)
 
         // 1. Interactions (visibility/alpha) — outermost: hides entire element
         result = InteractionApplier.applyInteraction(result, config.interactions)

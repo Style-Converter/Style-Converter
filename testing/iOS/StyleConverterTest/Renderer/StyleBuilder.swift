@@ -28,70 +28,31 @@ struct LayoutConfig {
     var columnGap: CGFloat   = 0
 }
 
-struct SizeConfig {
-    var width: CGFloat?     = nil
-    var height: CGFloat?    = nil
-    var minWidth: CGFloat?  = nil
-    var maxWidth: CGFloat?  = nil
-    var minHeight: CGFloat? = nil
-    var maxHeight: CGFloat? = nil
-    var aspectRatio: CGFloat? = nil
-}
+// Legacy SizeConfig removed — Phase 3 migrated sizing to the engine-side
+// SizeConfig under StyleEngine/sizing. The new type carries full
+// LengthValues instead of pre-resolved CGFloats so percent / em / vw can
+// defer resolution to the applier's GeometryReader. ComponentStyle.size
+// now refers directly to the engine struct.
 
+// Legacy spacing config retained as an empty shim so old references compile
+// while the engine-based PaddingConfig/MarginConfig take over. Migrated-out
+// properties (Padding*, Margin*) are handled via PaddingApplier / MarginApplier
+// attached through the new `spacing: SpacingConfig` field on ComponentStyle.
 struct SpacingConfig {
-    var paddingTop: CGFloat    = 0
-    var paddingRight: CGFloat  = 0
-    var paddingBottom: CGFloat = 0
-    var paddingLeft: CGFloat   = 0
-    var hasPadding: Bool { paddingTop != 0 || paddingRight != 0 || paddingBottom != 0 || paddingLeft != 0 }
+    // Phase 2 extractor outputs. Nil when not present in the IR.
+    var padding: PaddingConfig? = nil
+    var margin: MarginConfig? = nil
+    var gap: GapConfig? = nil
+    var marginTrim: MarginTrimConfig? = nil
+    // Threaded render context. FontSize is resolved during extraction.
+    var context: SpacingContext = SpacingContext()
 }
 
-struct BorderConfig {
-    var topWidth: CGFloat = 0
-    var rightWidth: CGFloat = 0
-    var bottomWidth: CGFloat = 0
-    var leftWidth: CGFloat = 0
-
-    var topColor: Color?    = nil
-    var rightColor: Color?  = nil
-    var bottomColor: Color? = nil
-    var leftColor: Color?   = nil
-
-    var topLeftRadius: CGFloat     = 0
-    var topRightRadius: CGFloat    = 0
-    var bottomRightRadius: CGFloat = 0
-    var bottomLeftRadius: CGFloat  = 0
-
-    /// True when every side uses the same width & color — lets us use a simple stroke.
-    var isUniform: Bool {
-        topWidth == rightWidth && rightWidth == bottomWidth && bottomWidth == leftWidth
-            && topColor == rightColor && rightColor == bottomColor && bottomColor == leftColor
-    }
-
-    var uniformWidth: CGFloat { topWidth }
-    var uniformColor: Color?  { topColor }
-
-    /// True when all four corner radii are the same.
-    var hasUniformRadius: Bool {
-        topLeftRadius == topRightRadius &&
-        topRightRadius == bottomRightRadius &&
-        bottomRightRadius == bottomLeftRadius
-    }
-
-    var uniformRadius: CGFloat { topLeftRadius }
-
-    var hasAnyRadius: Bool {
-        topLeftRadius != 0 || topRightRadius != 0 ||
-        bottomRightRadius != 0 || bottomLeftRadius != 0
-    }
-
-    var hasAnyBorder: Bool {
-        (topWidth != 0 && topColor != nil) ||
-        (rightWidth != 0 && rightColor != nil) ||
-        (bottomWidth != 0 && bottomColor != nil) ||
-        (leftWidth != 0 && leftColor != nil)
-    }
-}
+// Phase 5: the legacy BorderConfig is gone. Border sides, radius,
+// outline, border-image, BoxShadow, and the keyword-only miscellanies
+// are produced by the engine extractors under StyleEngine/borders/ and
+// StyleEngine/effects/shadow/. ComponentStyle now carries the engine
+// configs directly (see the Phase 5 block below).
 
 struct TextConfig {
     var color: Color?            = nil
@@ -109,6 +70,10 @@ struct EffectConfig {
     var opacity: CGFloat?   = nil
     var rotation: CGFloat?  = nil  // degrees
     var scale: CGFloat?     = nil
+    // Phase 5: BoxShadow moved to StyleEngine/effects/shadow. The legacy
+    // fields below are intentionally kept as `nil` defaults so the
+    // EffectsModifier's ShadowMod short-circuits — the paint now runs
+    // through BoxShadowApplier.
     var shadowColor: Color? = nil
     var shadowRadius: CGFloat? = nil
     var shadowX: CGFloat    = 0
@@ -121,10 +86,57 @@ struct ComponentStyle {
     var layout: LayoutConfig    = LayoutConfig()
     var size: SizeConfig        = SizeConfig()
     var spacing: SpacingConfig  = SpacingConfig()
-    var border: BorderConfig    = BorderConfig()
     var text: TextConfig        = TextConfig()
     var effect: EffectConfig    = EffectConfig()
     var backgroundColor: Color? = nil
+
+    // Phase 5 — border family engine configs. Each is nil when the IR
+    // carried no matching property, which lets every applier short-
+    // circuit to identity.
+    var borderSides: AllBordersConfig?    = nil
+    var borderRadius: BorderRadiusConfig? = nil
+    var borderImage: BorderImageConfig?   = nil
+    var outline: OutlineConfig?           = nil
+    var boxShadow: BoxShadowConfig?       = nil
+    var borderMisc: BorderMiscConfig?     = nil
+
+    // Phase 6 — typography aggregate. Populated once by
+    // TypographyExtractor; consumed by TypographyApplier attached in
+    // the applyStyle chain below.
+    var typography: TypographyAggregate? = nil
+
+    // Phase 7 step 2 — layout aggregate. Populated by LayoutExtractor
+    // (flexbox sub-step owns the 11 flex properties). Consumed by
+    // ComponentRenderer up front for container-kind selection; is not
+    // wired through the modifier chain (SwiftUI stack constructors
+    // take config, not modifiers).
+    var layout7: LayoutAggregate? = nil
+
+    // Phase 4 — colour + background + blend + isolation family outputs.
+    // All optional: nil means "no matching property in IR" so the
+    // corresponding applier short-circuits to identity.
+    var color: ColorConfig?                           = nil
+    var opacity: OpacityConfig?                       = nil
+    var accentColor: AccentColorConfig?               = nil
+    var caretColor: CaretColorConfig?                 = nil
+    var backgroundImage: BackgroundImageConfig?       = nil
+    var backgroundSize: BackgroundSizeConfig?         = nil
+    var backgroundPosition: BackgroundPositionConfig? = nil
+    var backgroundRepeat: BackgroundRepeatConfig?     = nil
+    var backgroundClip: BackgroundClipConfig?         = nil
+    var backgroundOrigin: BackgroundOriginConfig?     = nil
+    var backgroundAttachment: BackgroundAttachmentConfig? = nil
+    var blend: BlendModeConfig?                       = nil
+    var isolation: IsolationConfig?                   = nil
+
+    // Phase 8 — transforms + effects clip/filter/mask + visibility/overflow.
+    // Each is nil when the IR carried no matching property, so the
+    // corresponding applier short-circuits to identity.
+    var transforms: TransformsAggregate? = nil
+    var clipPath:   ClipConfig?          = nil
+    var visibility: VisibilityConfig?    = nil
+    var filter:     FilterConfig?        = nil
+    var mask:       MaskConfig?          = nil
 }
 
 // MARK: - Builder
@@ -135,125 +147,189 @@ enum StyleBuilder {
     static func build(from properties: [IRProperty]) -> ComponentStyle {
         var s = ComponentStyle()
 
+        // Phase 2: extract FontSize first so SpacingContext has the right
+        // pt value before padding/margin resolve em/rem. Default stays 16pt
+        // per the CSS spec when no FontSize property is present.
+        if let fs = properties.first(where: { $0.type == "FontSize" })
+            .flatMap({ ValueExtractors.extractPx($0.data) }) {
+            s.spacing.context.fontSizePx = Double(fs)
+        }
+
+        // Phase 2: extract each spacing family once via the new extractors.
+        // Properties in `PropertyRegistry.migrated` are then skipped in the
+        // legacy switch below, so there's no double-handling.
+        s.spacing.padding    = PaddingExtractor.extract(from: properties)
+        s.spacing.margin     = MarginExtractor.extract(from: properties)
+        s.spacing.gap        = GapExtractor.extract(from: properties)
+        s.spacing.marginTrim = MarginTrimExtractor.extract(from: properties)
+
+        // Phase 3: sizing family. SizeExtractor.extract never returns nil —
+        // it returns an empty config when no sizing props are present; the
+        // applier short-circuits via `hasAny`. Every sizing prop name is in
+        // PropertyRegistry.migrated so we don't double-dispatch below.
+        s.size = SizeExtractor.extract(from: properties)
+
+        // Phase 4: colour, background, blend, isolation. Each extractor
+        // returns nil when its property wasn't in the IR, letting each
+        // applier short-circuit cleanly. Every listed property type is in
+        // PropertyRegistry.migrated so the legacy switch below skips them.
+        s.color                = ColorExtractor.extract(from: properties)
+        s.opacity              = OpacityExtractor.extract(from: properties)
+        s.accentColor          = AccentColorExtractor.extract(from: properties)
+        s.caretColor           = CaretColorExtractor.extract(from: properties)
+        s.backgroundImage      = BackgroundImageExtractor.extract(from: properties)
+        s.backgroundSize       = BackgroundSizeExtractor.extract(from: properties)
+        s.backgroundPosition   = BackgroundPositionExtractor.extract(from: properties)
+        s.backgroundRepeat     = BackgroundRepeatExtractor.extract(from: properties)
+        s.backgroundClip       = BackgroundClipExtractor.extract(from: properties)
+        s.backgroundOrigin     = BackgroundOriginExtractor.extract(from: properties)
+        s.backgroundAttachment = BackgroundAttachmentExtractor.extract(from: properties)
+        s.blend                = BlendModeExtractor.extract(from: properties)
+        s.isolation            = IsolationExtractor.extract(from: properties)
+
+        // Phase 5 — border family. Every extractor returns nil when no
+        // matching property appears in the IR, so the appliers below
+        // short-circuit cleanly. All owned property names live in
+        // PropertyRegistry.migrated so the legacy switch skips them.
+        s.borderSides  = BorderSideExtractor.extract(from: properties)
+        s.borderRadius = BorderRadiusExtractor.extract(from: properties)
+        s.outline      = OutlineExtractor.extract(from: properties)
+        s.borderImage  = BorderImageExtractor.extract(from: properties)
+        s.boxShadow    = BoxShadowExtractor.extract(from: properties)
+        s.borderMisc   = BorderMiscExtractor.extract(from: properties)
+
+        // Phase 6 — typography. TypographyExtractor calls every triplet
+        // extractor, folds results into a single TypographyAggregate, and
+        // returns nil when nothing touched it. Every typography property
+        // name (including the "unsupported" groups) is in
+        // PropertyRegistry.migrated so the legacy switch below skips them.
+        s.typography = TypographyExtractor.extract(from: properties)
+
+        // Phase 7 step 2 — layout aggregate (flexbox sub-step). The
+        // 11 flex properties are listed in `LayoutFlexboxProperty.set`
+        // and included in `PropertyRegistry.migrated` so the legacy
+        // switch below skips them. `layout7` stays nil when no flex
+        // property touched the aggregate, preserving legacy fallback
+        // behaviour for grid/position/etc. until those sub-steps land.
+        s.layout7 = LayoutExtractor.extract(from: properties)
+
+        // Phase 8 — transforms (10 props), clip+visibility (10 props),
+        // filter (2), mask (15). Each owns its property-type names in
+        // PropertyRegistry.migrated so the legacy switch below skips them.
+        s.transforms = TransformsExtractor.extract(from: properties)
+        s.clipPath   = ClipExtractor.extract(from: properties)
+        s.visibility = VisibilityExtractor.extract(from: properties)
+        s.filter     = FilterExtractor.extract(from: properties)
+        s.mask       = MaskExtractor.extract(from: properties)
+        // Compatibility bridge — mirror the flex aggregate into the
+        // legacy `layout` config so any code paths still reading it
+        // (PlaceholderLabel via style.layout.display for .none short-
+        // circuit, GapApplier lookup) keep working. Only mirror fields
+        // the legacy LayoutConfig actually carries.
+        if let agg = s.layout7 {
+            if let disp = agg.display {
+                s.layout.display = legacyDisplay(disp, direction: agg.flexDirection)
+            }
+            if let j = agg.justifyContent { s.layout.justify = legacyJustify(j) }
+            if let a = agg.alignItems      { s.layout.align = legacyAlign(a) }
+            if let w = agg.flexWrap        { s.layout.wrap = legacyWrap(w) }
+        }
+        // Compatibility bridge for PlaceholderLabel in ComponentRenderer,
+        // which still reads `style.text.fontSize / fontWeight / italic /
+        // textAlign` directly. Mirror the aggregate's values so preview
+        // labels keep reflecting the declared typography.
+        if let agg = s.typography {
+            if let px = agg.fontSizePx     { s.text.fontSize = px }
+            if let w = agg.fontWeight      { s.text.fontWeight = w }
+            if let it = agg.italic         { s.text.fontItalic = it }
+            if let tr = agg.letterSpacingPx { s.text.letterSpacing = tr }
+            if let lh = agg.lineHeightPx   { s.text.lineHeight = lh }
+            if let a = agg.textAlign       { s.text.textAlign = a }
+            s.text.underline = s.text.underline || agg.underline
+            s.text.strikethrough = s.text.strikethrough || agg.strikethrough
+        }
+
+        // Compatibility bridge — ComponentRenderer reads `text.color`
+        // and `backgroundColor` directly (PlaceholderLabel uses the
+        // latter to pick a contrasting text colour). Mirror the Phase 4
+        // ColorConfig into these legacy fields. The legacy
+        // BackgroundModifier was deleted so mirroring `backgroundColor`
+        // no longer causes a double-paint.
+        if let fg = s.color?.foreground?.toSwiftUIColor() {
+            s.text.color = fg
+        }
+        if let bg = s.color?.background?.toSwiftUIColor() {
+            s.backgroundColor = bg
+        }
+        // Phase 4: opacity is now painted by OpacityApplier. The legacy
+        // EffectsModifier still reads `effect.opacity` — we deliberately
+        // leave it nil so only one modifier applies (the new one). This
+        // matches the "remove the legacy cases" instruction.
+
         for prop in properties {
+            // Skip migrated properties — the spacing extractors above
+            // have already consumed them. `contains` on a Set is O(1).
+            if PropertyRegistry.migrated.contains(prop.type) { continue }
+
             switch prop.type {
-            // ── Sizing ──────────────────────────────────────────────────
-            case "Width", "InlineSize":
-                s.size.width = ValueExtractors.extractPx(prop.data)
-            case "Height", "BlockSize":
-                s.size.height = ValueExtractors.extractPx(prop.data)
-            case "MinWidth", "MinInlineSize":
-                s.size.minWidth = ValueExtractors.extractPx(prop.data)
-            case "MaxWidth", "MaxInlineSize":
-                s.size.maxWidth = ValueExtractors.extractPx(prop.data)
-            case "MinHeight", "MinBlockSize":
-                s.size.minHeight = ValueExtractors.extractPx(prop.data)
-            case "MaxHeight", "MaxBlockSize":
-                s.size.maxHeight = ValueExtractors.extractPx(prop.data)
-            case "AspectRatio":
-                s.size.aspectRatio = ValueExtractors.extractFloat(prop.data)
+            // ── Sizing ── migrated to StyleEngine/sizing (Phase 3). All
+            // Width/Height/Min*/Max*/BlockSize/InlineSize/AspectRatio
+            // flow through SizeExtractor above and are listed in
+            // PropertyRegistry.migrated, so they never hit this switch.
 
-            // ── Spacing ─────────────────────────────────────────────────
-            case "PaddingTop", "PaddingBlockStart":
-                s.spacing.paddingTop = ValueExtractors.extractPx(prop.data) ?? 0
-            case "PaddingRight", "PaddingInlineEnd":
-                s.spacing.paddingRight = ValueExtractors.extractPx(prop.data) ?? 0
-            case "PaddingBottom", "PaddingBlockEnd":
-                s.spacing.paddingBottom = ValueExtractors.extractPx(prop.data) ?? 0
-            case "PaddingLeft", "PaddingInlineStart":
-                s.spacing.paddingLeft = ValueExtractors.extractPx(prop.data) ?? 0
+            // ── Spacing ─── migrated to StyleEngine/spacing (Phase 2) ──
 
-            // ── Colors ──────────────────────────────────────────────────
-            case "BackgroundColor":
-                s.backgroundColor = ValueExtractors.extractColor(prop.data)
-            case "Color":
-                s.text.color = ValueExtractors.extractColor(prop.data)
+            // ── Colors ── migrated to StyleEngine/color (Phase 4) ───────
+            // BackgroundColor + Color now flow through ColorExtractor /
+            // ColorApplier. `text.color` is mirrored from ColorConfig
+            // above so the text renderer keeps working. Both names are
+            // listed in PropertyRegistry.migrated and never hit this
+            // switch.
 
-            // ── Borders: widths ─────────────────────────────────────────
-            case "BorderTopWidth":    s.border.topWidth    = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderRightWidth":  s.border.rightWidth  = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderBottomWidth": s.border.bottomWidth = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderLeftWidth":   s.border.leftWidth   = ValueExtractors.extractPx(prop.data) ?? 0
+            // ── Borders ── migrated to StyleEngine/borders (Phase 5).
+            // Sides, radius, outline, border-image, misc keywords, and
+            // BoxShadow now flow through dedicated extractors above. Every
+            // property name is in PropertyRegistry.migrated so the guard
+            // at the top of the loop already skipped them.
 
-            // ── Borders: colors ─────────────────────────────────────────
-            case "BorderTopColor":    s.border.topColor    = ValueExtractors.extractColor(prop.data)
-            case "BorderRightColor":  s.border.rightColor  = ValueExtractors.extractColor(prop.data)
-            case "BorderBottomColor": s.border.bottomColor = ValueExtractors.extractColor(prop.data)
-            case "BorderLeftColor":   s.border.leftColor   = ValueExtractors.extractColor(prop.data)
+            // ── Typography ── migrated to StyleEngine/typography (Phase 6).
+            // Every font-*, line-*, text-*, white-space, word-break,
+            // hyphen*, letter/word-spacing, tab-size, direction,
+            // writing-mode, unicode-bidi, vertical-align, quotes,
+            // text-rendering, plus the 60+ no-op grouped family props,
+            // now flow through TypographyExtractor + TypographyApplier.
+            // All owned names live in PropertyRegistry.migrated so the
+            // guard at the top of the loop already skipped them.
 
-            // ── Borders: radius ─────────────────────────────────────────
-            case "BorderTopLeftRadius", "BorderStartStartRadius":
-                s.border.topLeftRadius     = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderTopRightRadius", "BorderStartEndRadius":
-                s.border.topRightRadius    = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderBottomRightRadius", "BorderEndEndRadius":
-                s.border.bottomRightRadius = ValueExtractors.extractPx(prop.data) ?? 0
-            case "BorderBottomLeftRadius", "BorderEndStartRadius":
-                s.border.bottomLeftRadius  = ValueExtractors.extractPx(prop.data) ?? 0
-
-            // ── Typography ──────────────────────────────────────────────
-            case "FontSize":
-                s.text.fontSize = ValueExtractors.extractPx(prop.data)
-            case "FontWeight":
-                s.text.fontWeight = parseFontWeight(prop.data)
-            case "FontStyle":
-                if let kw = ValueExtractors.extractKeyword(prop.data)?.lowercased() {
-                    s.text.fontItalic = (kw == "italic" || kw == "oblique")
-                }
-            case "LetterSpacing":
-                s.text.letterSpacing = ValueExtractors.extractPx(prop.data)
-            case "LineHeight":
-                s.text.lineHeight = ValueExtractors.extractPx(prop.data)
-            case "TextAlign":
-                s.text.textAlign = parseTextAlign(prop.data)
-            case "TextDecoration":
-                let kw = ValueExtractors.extractKeyword(prop.data)?.lowercased() ?? ""
-                if kw.contains("under") { s.text.underline = true }
-                if kw.contains("line-through") || kw.contains("strike") { s.text.strikethrough = true }
-
-            // ── Layout / display ────────────────────────────────────────
-            case "Display":
-                let kw = ValueExtractors.normalize(ValueExtractors.extractKeyword(prop.data))
-                switch kw {
-                case "FLEX", "INLINE_FLEX":           s.layout.display = .flexRow
-                case "GRID":                          s.layout.display = .grid
-                case "INLINE", "INLINE_BLOCK":        s.layout.display = .inline
-                case "NONE":                          s.layout.display = .none
-                default:                              s.layout.display = .block
-                }
-            case "FlexDirection":
-                let kw = ValueExtractors.normalize(ValueExtractors.extractKeyword(prop.data))
-                if (kw == "COLUMN" || kw == "COLUMN_REVERSE") && s.layout.display == .flexRow {
-                    s.layout.display = .flexColumn
-                }
-            case "JustifyContent":
-                s.layout.justify = parseJustify(prop.data)
-            case "AlignItems":
-                s.layout.align = parseAlign(prop.data)
-            case "FlexWrap":
-                let kw = ValueExtractors.normalize(ValueExtractors.extractKeyword(prop.data))
-                s.layout.wrap = (kw == "WRAP") ? .wrap : (kw == "WRAP_REVERSE") ? .wrapReverse : .noWrap
-            case "Gap":
-                if let g = ValueExtractors.extractPx(prop.data) {
-                    s.layout.rowGap = g
-                    s.layout.columnGap = g
-                }
-            case "RowGap":
-                if let g = ValueExtractors.extractPx(prop.data) { s.layout.rowGap = g }
-            case "ColumnGap":
-                if let g = ValueExtractors.extractPx(prop.data) { s.layout.columnGap = g }
+            // ── Layout / display ── migrated to StyleEngine/layout
+            // (Phase 7 step 2). Display, FlexDirection, FlexWrap,
+            // JustifyContent, AlignItems now flow through LayoutExtractor
+            // → LayoutAggregate → FlexboxApplier.containerDecision(...),
+            // consumed by ComponentRenderer at container-construction time.
+            // All five names plus the rest of the flex family are in
+            // PropertyRegistry.migrated so they never hit this switch.
+            // Gap / RowGap / ColumnGap migrated — see GapExtractor.
 
             // ── Effects ─────────────────────────────────────────────────
-            case "Opacity":
-                s.effect.opacity = ValueExtractors.extractFloat(prop.data)
-            case "Rotate":
-                s.effect.rotation = ValueExtractors.extractDegrees(prop.data)
-            case "Scale":
-                s.effect.scale = ValueExtractors.extractFloat(prop.data)
-            case "BoxShadow":
-                applyBoxShadow(prop.data, to: &s.effect)
-            case "ZIndex":
-                s.effect.zIndex = ValueExtractors.extractFloat(prop.data).map(Double.init)
+            // Opacity migrated to StyleEngine/color (Phase 4) — see
+            // OpacityApplier. Not handled here.
+            // Phase 8: Rotate / Scale / Translate / Transform / TransformOrigin
+            // / TransformBox / TransformStyle / Perspective / PerspectiveOrigin
+            // / BackfaceVisibility migrated to StyleEngine/transforms via
+            // TransformsExtractor + TransformsApplier. ClipPath / ClipRule /
+            // Clip migrated to StyleEngine/effects/clip. Filter / BackdropFilter
+            // migrated to StyleEngine/effects/filter. Mask family migrated to
+            // StyleEngine/effects/mask. Visibility / Overflow* migrated to
+            // StyleEngine/visibility. All names live in PropertyRegistry
+            // .migrated so the guard at the top of this loop already skipped
+            // them.
+            // BoxShadow migrated to StyleEngine/effects/shadow (Phase 5).
+            // Handled by BoxShadowExtractor above; listed in
+            // PropertyRegistry.migrated.
+            // ZIndex migrated to StyleEngine/layout/position (Phase 7
+            // step 4) — handled by PositionExtractor + PositionApplier.
+            // Position / Top / Right / Bottom / Left / InsetBlock* /
+            // InsetInline* were never in this legacy switch.
 
             default:
                 break  // unsupported — silently skip
@@ -265,83 +341,74 @@ enum StyleBuilder {
 
     // MARK: - Parsing helpers
 
-    private static func parseFontWeight(_ v: IRValue) -> Font.Weight? {
-        if let n = ValueExtractors.extractInt(v) {
-            switch n {
-            case ..<200: return .ultraLight
-            case ..<300: return .thin
-            case ..<400: return .light
-            case ..<500: return .regular
-            case ..<600: return .medium
-            case ..<700: return .semibold
-            case ..<800: return .bold
-            case ..<900: return .heavy
-            default:     return .black
+    // Phase 6: parseFontWeight and parseTextAlign removed — the typography
+    // extractors (FontWeightExtractor, TextAlignExtractor) own these parses.
+
+    // Phase 7 step 2: parseJustify/parseAlign replaced by
+    // FlexboxExtractor.mapAlignment (engine side). The `legacy*`
+    // helpers below translate the engine's AlignmentKeyword back into
+    // the legacy LayoutConfig enums so ComponentRenderer's existing
+    // VerticalAlignment / HorizontalAlignment bridges keep working
+    // until the grid/position sub-steps land and ComponentRenderer
+    // switches over to ContainerDecision wholesale.
+
+    /// Engine DisplayKeyword → legacy LayoutConfig.DisplayType.
+    /// FlexDirection is folded in here so `.flex` + column becomes
+    /// `.flexColumn` — matching the original switch.
+    fileprivate static func legacyDisplay(
+        _ disp: DisplayKeyword,
+        direction: FlexDirectionKeyword?
+    ) -> LayoutConfig.DisplayType {
+        switch disp {
+        case .flex:
+            switch direction {
+            case .column, .columnReverse: return .flexColumn
+            default:                      return .flexRow
             }
-        }
-        switch ValueExtractors.extractKeyword(v)?.lowercased() {
-        case "bold":    return .bold
-        case "bolder":  return .heavy
-        case "lighter": return .light
-        case "normal":  return .regular
-        default:        return nil
+        case .grid:     return .grid
+        case .inline:   return .inline
+        case .none:     return .none
+        case .contents: return .block  // best-effort approximation
+        case .block:    return .block
         }
     }
 
-    private static func parseTextAlign(_ v: IRValue) -> TextAlignment {
-        switch ValueExtractors.normalize(ValueExtractors.extractKeyword(v)) {
-        case "CENTER":         return .center
-        case "RIGHT", "END":   return .trailing
-        default:               return .leading
+    /// Engine AlignmentKeyword → legacy LayoutConfig.Justify.
+    fileprivate static func legacyJustify(_ kw: AlignmentKeyword) -> LayoutConfig.Justify {
+        switch kw {
+        case .center:       return .center
+        case .end, .selfEnd: return .flexEnd
+        case .spaceBetween: return .spaceBetween
+        case .spaceAround:  return .spaceAround
+        case .spaceEvenly:  return .spaceEvenly
+        default:            return .flexStart
         }
     }
 
-    private static func parseJustify(_ v: IRValue) -> LayoutConfig.Justify {
-        switch ValueExtractors.normalize(ValueExtractors.extractKeyword(v)) {
-        case "CENTER":                return .center
-        case "FLEX_END", "END":       return .flexEnd
-        case "SPACE_BETWEEN":         return .spaceBetween
-        case "SPACE_AROUND":          return .spaceAround
-        case "SPACE_EVENLY":          return .spaceEvenly
-        default:                      return .flexStart
+    /// Engine AlignmentKeyword → legacy LayoutConfig.Align.
+    fileprivate static func legacyAlign(_ kw: AlignmentKeyword) -> LayoutConfig.Align {
+        switch kw {
+        case .center:               return .center
+        case .start, .selfStart:    return .flexStart
+        case .end, .selfEnd:        return .flexEnd
+        case .baseline:             return .baseline
+        default:                    return .stretch
         }
     }
 
-    private static func parseAlign(_ v: IRValue) -> LayoutConfig.Align {
-        switch ValueExtractors.normalize(ValueExtractors.extractKeyword(v)) {
-        case "CENTER":                return .center
-        case "FLEX_START", "START":   return .flexStart
-        case "FLEX_END", "END":       return .flexEnd
-        case "BASELINE":              return .baseline
-        default:                      return .stretch
+    /// Engine FlexWrapKeyword → legacy LayoutConfig.Wrap.
+    fileprivate static func legacyWrap(_ kw: FlexWrapKeyword) -> LayoutConfig.Wrap {
+        switch kw {
+        case .wrap:         return .wrap
+        case .wrapReverse:  return .wrapReverse
+        case .nowrap:       return .noWrap
         }
     }
 
-    /// Box-shadow IR is an array of shadow objects:
-    ///   [ { "x": {"px": 5}, "y": {"px": 5}, "blur": {"px": 10},
-    ///       "c": { "srgb": {...} }, "inset": false, "spread": {"px": 0} } ]
-    /// We pick the first shadow and pull x/y/blur through the length extractor
-    /// (values are wrapped in { "px": ... }, not bare numbers). Color key is
-    /// "c" in this IR flavor; fall back to "color" if present.
-    private static func applyBoxShadow(_ v: IRValue, to effect: inout EffectConfig) {
-        var shadow: [String: IRValue]? = nil
-        switch v {
-        case .array(let arr): shadow = arr.first?.objectValue
-        case .object(let o):  shadow = (o["shadows"]?.arrayValue?.first?.objectValue) ?? o
-        default: break
-        }
-        guard let shadow = shadow else { return }
-
-        // Inset shadows aren't supported by SwiftUI's .shadow(); skip them
-        // rather than render a misleading outset.
-        if shadow["inset"]?.boolValue == true { return }
-
-        effect.shadowX = ValueExtractors.extractPx(shadow["x"] ?? shadow["offsetX"]) ?? 0
-        effect.shadowY = ValueExtractors.extractPx(shadow["y"] ?? shadow["offsetY"]) ?? 0
-        effect.shadowRadius = ValueExtractors.extractPx(shadow["blur"] ?? shadow["blurRadius"]) ?? 0
-        effect.shadowColor = ValueExtractors.extractColor(shadow["c"] ?? shadow["color"])
-            ?? Color.black.opacity(0.25)
-    }
+    // Phase 5: applyBoxShadow removed. BoxShadow is now handled by
+    // BoxShadowExtractor + BoxShadowApplier under StyleEngine/effects/
+    // shadow — this includes multi-layer composition, inset shadows,
+    // and spread (all of which the legacy helper silently dropped).
 }
 
 // MARK: - View modifier
@@ -353,126 +420,100 @@ extension View {
     @ViewBuilder
     func applyStyle(_ style: ComponentStyle) -> some View {
         self
-            .modifier(SizingModifier(size: style.size))
-            .modifier(PaddingModifier(spacing: style.spacing))
-            .modifier(BackgroundModifier(color: style.backgroundColor, border: style.border))
-            .modifier(BorderModifier(border: style.border))
+            // Phase 3 — sizing applied via SizeApplier. Uses the threaded
+            // SpacingContext so em/rem/vw resolve against the same 390×844
+            // canvas as padding/margin.
+            .engineSizing(style.size, context: style.spacing.context)
+            // Phase 2: padding / margin / margin-trim from StyleEngine/spacing.
+            // Order matters — padding is inside the border (CSS box model),
+            // margin is outside.
+            .engineSpacingPadding(style.spacing.padding, context: style.spacing.context)
+            // Phase 4 — painting chain. Order (from innermost outward):
+            //   1. BackgroundImage: gradients sit behind solid colour so
+            //      a BackgroundColor with translucency can tint them.
+            //   2. BackgroundColor: solid paint, rounded-corner aware.
+            //   3. BackgroundClip / Origin / Repeat / Attachment / Size:
+            //      currently stubs (see per-file headers) — kept in the
+            //      chain for future non-identity implementations.
+            //   4. BackgroundPosition: stub today.
+            .engineBackgroundImage(style.backgroundImage)
+            .engineBackgroundColor(style.color, radius: style.borderRadius)
+            .engineBackgroundClip(style.backgroundClip)
+            .engineBackgroundOrigin(style.backgroundOrigin)
+            .engineBackgroundRepeat(style.backgroundRepeat)
+            .engineBackgroundAttachment(style.backgroundAttachment)
+            .engineBackgroundSize(style.backgroundSize)
+            .engineBackgroundPosition(style.backgroundPosition)
+            // Phase 5 — border family. Order: image (bottom) → radius
+            // clip → sides stroke → outline (outside box) → shadow
+            // (stacked outside). BoxShadow comes last so `.shadow(...)`
+            // stacks on the fully-painted element.
+            .engineBorderImage(style.borderImage)
+            .engineBorderRadius(style.borderRadius)
+            .engineBorderSides(style.borderSides, radius: style.borderRadius)
+            .engineOutline(style.outline, radius: style.borderRadius)
+            .engineBorderMisc(style.borderMisc)
+            .engineBoxShadow(style.boxShadow, radius: style.borderRadius)
+            // Phase 4 — blend / isolation / opacity. `.blendMode`
+            // applies to the whole element (including already-painted
+            // backgrounds) so it must come after the paint chain.
+            // `.compositingGroup` and `.opacity` follow so blending
+            // composites into the isolated buffer before fading.
+            .engineBlendMode(style.blend)
+            .engineIsolation(style.isolation)
+            .engineOpacity(style.opacity)
+            // Phase 4 — accent/caret tint. Accent tints descendant
+            // controls; caret is a stub. Both happily go anywhere.
+            .engineAccentColor(style.accentColor)
+            .engineCaretColor(style.caretColor)
+            // Phase 6 — typography aggregate. Collapses font-size/weight
+            // /style/family + tracking + line-spacing + alignment +
+            // line-limit + truncation + text-case + underline + shadow
+            // into a single modifier. Attached late so it wraps over the
+            // paint chain.
+            .engineTypography(style.typography)
+            // Phase 8 — effects chain. Order matters:
+            //   1. mask clips alpha before paint
+            //   2. filter applies per-pixel effects to painted pixels
+            //   3. clip-path carves the final geometry
+            //   4. transforms warp the finished view (rotate/scale/translate)
+            //   5. visibility/overflow gates what escapes the frame.
+            .engineMask(style.mask)
+            .engineFilter(style.filter)
+            .engineClipPath(style.clipPath)
+            .engineTransforms(style.transforms)
+            .engineVisibility(style.visibility)
             .modifier(EffectsModifier(effect: style.effect))
+            .engineSpacingMargin(style.spacing.margin, context: style.spacing.context)
+            .engineSpacingMarginTrim(style.spacing.marginTrim)
     }
 }
 
-private struct SizingModifier: ViewModifier {
-    let size: SizeConfig
-    func body(content: Content) -> some View {
-        content
-            // `.frame(..., alignment: .topLeading)` is critical for parity
-            // with the CSS block model. By default SwiftUI centers content
-            // inside a `.frame(maxWidth:)`, which made iOS boxes render
-            // in the middle of their parent container while Android and
-            // Web (both using flow layout) placed them at the start.
-            // Anchoring to top-leading makes sized children render at the
-            // block's origin, matching how `<div style="width:200px">`
-            // sits in its flow container on web.
-            .frame(
-                minWidth: size.minWidth,
-                idealWidth: size.width,
-                maxWidth: size.maxWidth ?? size.width,
-                minHeight: size.minHeight,
-                idealHeight: size.height,
-                maxHeight: size.maxHeight ?? size.height,
-                alignment: .topLeading
-            )
-            .modifier(ExactSizeModifier(w: size.width, h: size.height))
-            .modifier(AspectRatioModifier(ratio: size.aspectRatio))
-    }
-}
+// Phase 3: SizingModifier / ExactSizeModifier / AspectRatioModifier
+// deleted — the engine-side SizeApplier replaces all three, and the
+// wiring lives in `engineSizing(_:context:)` on View above.
 
-private struct ExactSizeModifier: ViewModifier {
-    let w: CGFloat?
-    let h: CGFloat?
-    func body(content: Content) -> some View {
-        if w != nil || h != nil {
-            // Same rationale as SizingModifier above — pin to topLeading so
-            // exact-size boxes render at the flow origin instead of centered.
-            content.frame(width: w, height: h, alignment: .topLeading)
-        } else {
-            content
-        }
-    }
-}
+// Phase 4: BackgroundModifier removed — BackgroundColor now paints via
+// the new ColorApplier (StyleEngine/color/ColorApplier.swift), which
+// replicates the rounded-corner-aware paint so the switch is pixel
+// equivalent. The `backgroundColor: Color?` field on ComponentStyle is
+// no longer wired to a modifier; it's kept as a compatibility mirror
+// with .text.color for consumers that read it directly.
 
-private struct AspectRatioModifier: ViewModifier {
-    let ratio: CGFloat?
-    func body(content: Content) -> some View {
-        if let r = ratio, r > 0 {
-            content.aspectRatio(r, contentMode: .fit)
-        } else {
-            content
-        }
-    }
-}
-
-private struct PaddingModifier: ViewModifier {
-    let spacing: SpacingConfig
-    func body(content: Content) -> some View {
-        content
-            .padding(.top,    spacing.paddingTop)
-            .padding(.trailing, spacing.paddingRight)
-            .padding(.bottom, spacing.paddingBottom)
-            .padding(.leading,  spacing.paddingLeft)
-    }
-}
-
-private struct BackgroundModifier: ViewModifier {
-    let color: Color?
-    let border: BorderConfig
-
-    func body(content: Content) -> some View {
-        if let c = color {
-            if border.hasAnyRadius {
-                content.background(
-                    roundedShape(border).fill(c)
-                )
-            } else {
-                content.background(c)
-            }
-        } else {
-            content
-        }
-    }
-}
-
-private struct BorderModifier: ViewModifier {
-    let border: BorderConfig
-    func body(content: Content) -> some View {
-        if border.isUniform && border.hasAnyBorder,
-           let color = border.uniformColor, border.uniformWidth > 0 {
-            if border.hasAnyRadius {
-                content.overlay(
-                    roundedShape(border).stroke(color, lineWidth: border.uniformWidth)
-                )
-            } else {
-                content.overlay(
-                    Rectangle().stroke(color, lineWidth: border.uniformWidth)
-                )
-            }
-        } else if border.hasAnyRadius {
-            // Still apply corner radius clipping even without borders
-            content.clipShape(roundedShape(border))
-        } else {
-            content
-        }
-    }
-}
+// Phase 5: BorderModifier removed. Border sides, radius, outline,
+// border-image, BoxShadow, and the keyword-only miscellanies now paint
+// through StyleEngine/borders and StyleEngine/effects/shadow — wired
+// via the `.engineBorder*` chain in `applyStyle` above.
 
 private struct EffectsModifier: ViewModifier {
     let effect: EffectConfig
     func body(content: Content) -> some View {
         content
             .modifier(OpacityMod(value: effect.opacity))
-            .modifier(RotationMod(value: effect.rotation))
-            .modifier(ScaleMod(value: effect.scale))
-            .modifier(ShadowMod(effect: effect))
+            // Phase 8: RotationMod / ScaleMod deleted. The transforms
+            // family now flows through TransformsApplier attached via
+            // `.engineTransforms` in applyStyle above.
+            // ShadowMod no longer fires — BoxShadow is the new engine path.
             .modifier(ZIndexMod(value: effect.zIndex))
     }
 }
@@ -484,35 +525,10 @@ private struct OpacityMod: ViewModifier {
     }
 }
 
-private struct RotationMod: ViewModifier {
-    let value: CGFloat?
-    func body(content: Content) -> some View {
-        if let v = value { content.rotationEffect(.degrees(v)) } else { content }
-    }
-}
+// Phase 8: RotationMod + ScaleMod removed. TransformsApplier owns all
+// rotate/scale/translate/skew/matrix/perspective composition.
 
-private struct ScaleMod: ViewModifier {
-    let value: CGFloat?
-    func body(content: Content) -> some View {
-        if let v = value { content.scaleEffect(v) } else { content }
-    }
-}
-
-private struct ShadowMod: ViewModifier {
-    let effect: EffectConfig
-    func body(content: Content) -> some View {
-        if let radius = effect.shadowRadius, radius > 0 || effect.shadowColor != nil {
-            content.shadow(
-                color: effect.shadowColor ?? .black.opacity(0.25),
-                radius: radius,
-                x: effect.shadowX,
-                y: effect.shadowY
-            )
-        } else {
-            content
-        }
-    }
-}
+// Phase 5: ShadowMod removed — BoxShadowApplier owns the paint now.
 
 private struct ZIndexMod: ViewModifier {
     let value: Double?
@@ -521,15 +537,7 @@ private struct ZIndexMod: ViewModifier {
     }
 }
 
-// Shared shape helper — uses a single uniform radius when all four corners match,
-// or the largest-matching RoundedRectangle otherwise (best-effort; mixed radii
-// would need a custom Shape).
-private func roundedShape(_ b: BorderConfig) -> some Shape {
-    let r: CGFloat
-    if b.hasUniformRadius {
-        r = b.uniformRadius
-    } else {
-        r = max(b.topLeftRadius, b.topRightRadius, b.bottomLeftRadius, b.bottomRightRadius)
-    }
-    return RoundedRectangle(cornerRadius: r, style: .continuous)
-}
+// Phase 5: the shared `roundedShape(_:)` helper was replaced by
+// `BorderRadiusShape` under StyleEngine/borders/radius — it honours
+// per-corner elliptical radii, which the old RoundedRectangle helper
+// couldn't express.

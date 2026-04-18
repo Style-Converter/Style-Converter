@@ -1,22 +1,22 @@
 package com.styleconverter.test.style.layout
 
 import androidx.compose.ui.Modifier
-import com.styleconverter.test.style.layout.flex.FlexContainerConfig
-import com.styleconverter.test.style.layout.flex.FlexExtractor
-import com.styleconverter.test.style.layout.flex.FlexItemConfig
+import com.styleconverter.test.style.layout.flexbox.FlexContainerConfig
+import com.styleconverter.test.style.layout.flexbox.FlexExtractor
+import com.styleconverter.test.style.layout.flexbox.FlexItemConfig
 import com.styleconverter.test.style.layout.grid.GridConfig
 import com.styleconverter.test.style.layout.grid.GridExtractor
 import com.styleconverter.test.style.layout.position.PositionApplier
 import com.styleconverter.test.style.layout.position.PositionConfig
 import com.styleconverter.test.style.layout.position.PositionExtractor
-import com.styleconverter.test.style.layout.sizing.SizingApplier
-import com.styleconverter.test.style.layout.sizing.SizingConfig
-import com.styleconverter.test.style.layout.sizing.SizingExtractor
-import com.styleconverter.test.style.layout.spacing.GapConfig
-import com.styleconverter.test.style.layout.spacing.MarginConfig
-import com.styleconverter.test.style.layout.spacing.PaddingConfig
-import com.styleconverter.test.style.layout.spacing.SpacingApplier
-import com.styleconverter.test.style.layout.spacing.SpacingExtractor
+import com.styleconverter.test.style.sizing.SizingApplier
+import com.styleconverter.test.style.sizing.SizingConfig
+import com.styleconverter.test.style.sizing.SizingExtractor
+import com.styleconverter.test.style.spacing.GapConfig
+import com.styleconverter.test.style.spacing.MarginConfig
+import com.styleconverter.test.style.spacing.PaddingConfig
+import com.styleconverter.test.style.spacing.SpacingApplier
+import com.styleconverter.test.style.spacing.SpacingExtractor
 import kotlinx.serialization.json.JsonElement
 
 /**
@@ -198,4 +198,56 @@ object LayoutFacade {
         "FlexGrow", "FlexShrink", "FlexBasis",
         "AlignSelf", "Order"
     )
+
+    // --- Phase 7 step 1: style-engine LayoutConfig hook ---------------------
+    //
+    // The three methods below delegate to the new LayoutExtractor /
+    // LayoutApplier scaffold. They are intentionally separate from the legacy
+    // `extractConfig` / `applyToModifier` above — those remain untouched so
+    // ComponentRenderer's existing code path works byte-identically.
+    //
+    // Later Phase 7 steps will migrate callers from the legacy pair to the
+    // style-engine triplet, then (step 6) delete the legacy pair. Until then
+    // both exist side by side.
+    //
+    // The method names deliberately don't collide with the legacy ones:
+    //   extractConfig       -> legacy LayoutFacade.LayoutConfig
+    //   extractLayoutConfig -> new style-engine LayoutConfig (top-level in package)
+
+    /**
+     * Phase 7 entrypoint — extract the style-engine [LayoutConfig] scaffold.
+     *
+     * Step 1: returns [LayoutConfig.Empty] (all nulls). See
+     * [LayoutExtractor.extractLayoutConfig] for the contract.
+     */
+    fun extractLayoutConfig(
+        properties: List<Pair<String, JsonElement?>>
+    ): com.styleconverter.test.style.layout.LayoutConfig {
+        return LayoutExtractor.extractLayoutConfig(properties)
+    }
+
+    /**
+     * Phase 7 entrypoint — ask the style engine which Compose container this
+     * component should render with. Step 1 always returns
+     * [ContainerDecision.default] which signals "defer to the legacy renderer."
+     */
+    fun containerDecision(
+        config: com.styleconverter.test.style.layout.LayoutConfig?
+    ): ContainerDecision {
+        // Null-safe so ComponentRenderer can pass null in failure paths.
+        if (config == null) return ContainerDecision.default
+        return LayoutApplier.containerDecision(config)
+    }
+
+    /**
+     * Phase 7 entrypoint — child-level Modifier contribution (zIndex,
+     * alignSelf, order, relative inset). Step 1 returns identity Modifier so
+     * the legacy StyleApplier chain is unaffected.
+     */
+    fun childModifier(
+        config: com.styleconverter.test.style.layout.LayoutConfig?
+    ): Modifier {
+        if (config == null) return Modifier
+        return LayoutApplier.childModifier(config)
+    }
 }
